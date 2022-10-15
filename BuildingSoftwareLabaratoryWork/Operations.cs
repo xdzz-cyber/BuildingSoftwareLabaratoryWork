@@ -7,7 +7,7 @@ public static class Operations
 {
     
     public static readonly Dictionary<string, int> operations = new() 
-        {{"Assign" ,1}, {"Compare", 2} , {"ReadNStore", 3}, {"PrintValue",4}, {"ShowState",5}, {"ShowConstants",6} };
+        {{"Assign",1}, {"Compare",2} , {"ReadNStore",3}, {"PrintValue",4}, {"ShowState",5}, {"ShowConstants",6} };
 
     public static ReadDataViewModel ReadToAssign()
     {

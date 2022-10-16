@@ -4,12 +4,12 @@ using BuildingSoftwareLabaratoryWork;
 //var tasks = new ConcurrentQueue<Task>();
 var state = new ConcurrentDictionary<string, int>();
 
-Console.WriteLine("1 - create new schema\n2 - show schemas\n3 - show schema details by id" +
-                  "\n4 - modify schema by id\n5 - save schema to file by id\n6 - execute schema by id\ntest schema - 7\n8 - exit");
+Console.WriteLine("1 - create new schema\n2 - show schemas" +
+                  "\n3 - modify schema by id\n4 - execute schema by id\n5 - test schema by id\n6 - exit");
 
 var response = Console.ReadLine();
 Schema.Init(Operations.operations);
-while (response != "8")
+while (response != "6")
 {
     // making one action
     switch (response)
@@ -21,16 +21,22 @@ while (response != "8")
             //tasks.Append(Task.Run(CreateSchema));
             Schema.CreateSchema().GetAwaiter().GetResult();
             break;
-        case "4":
+        case "2":
+            Schema.ShowSchemas().GetAwaiter().GetResult();
+            break;
+        case "3":
             Schema.ModifySchemas().GetAwaiter().GetResult();
+            break;
+        case "4":
+            Schema.ExecuteSchemaById().GetAwaiter().GetResult();
             break;
         default:
             Console.WriteLine("Please, enter correct command");
             break;
     }
     
-    Console.WriteLine("1 - create new schema\n2 - show schemas\n3 - show schema details by id" +
-                      "\n4 - modify schema by id\n5 - save schema to file by id\n6 - execute schema by id\ntest schema - 7\n8 - exit");
+    Console.WriteLine("1 - create new schema\n2 - show schemas" +
+                      "\n3 - modify schema by id\n4 - execute schema by id\n5 - test schema by id\n6 - exit");
     
     Console.WriteLine("Enter new command");
 

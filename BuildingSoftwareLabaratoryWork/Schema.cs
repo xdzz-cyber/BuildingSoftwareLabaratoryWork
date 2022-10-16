@@ -1,7 +1,9 @@
 ﻿using System.Reflection;
-using System.Text.Json;
+using System.Text;
 using System.Text.RegularExpressions;
 using BuildingSoftwareLabaratoryWork.Models;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace BuildingSoftwareLabaratoryWork;
 
@@ -13,6 +15,23 @@ public static class Schema
     {
         _commands = commands;
     }
+
+    public static async Task ShowSchemas()
+    {
+        Console.WriteLine("Please, enter filename");
+
+        var filename = Console.ReadLine();
+
+        var rawSchemas = await GetSchemas(filename!);
+
+        Console.WriteLine($"\n{rawSchemas}");
+    }
+
+    private static async Task<string> GetSchemas(string filename)
+    {
+
+        return await File.ReadAllTextAsync(filename);
+    }
     
    public static async Task CreateSchema()
 {
@@ -23,27 +42,81 @@ public static class Schema
 
     var chosenCommandsIds = Console.ReadLine();
 
+    var commandsIdsIfTrue = string.Empty;
+
+    var commandsIdsIfFalse = string.Empty;
+
+    foreach (var chosenCommandId in chosenCommandsIds!.Split(","))
+    {
+        if (!chosenCommandId.Equals("2") && !chosenCommandId.Equals("3")) continue;
+
+        Console.WriteLine("Please, enter commands ids that will be executed in case of true");
+
+        commandsIdsIfTrue = Console.ReadLine();
+
+        Console.WriteLine("Please, enter commands ids that will be executed in case of false");
+
+        commandsIdsIfFalse = Console.ReadLine();
+    }
+
     Console.WriteLine("Please, enter filename in which schemas will be stored");
 
     var filename = Console.ReadLine();
 
-    await File.AppendAllTextAsync(filename ?? throw new InvalidOperationException(), JsonSerializer.Serialize(new FileDataViewModel
+    var schemaToBeInserted = new List<string?>();
+
+    var baseSchemaId = Guid.NewGuid();
+    
+    foreach (var chosenCommandId in chosenCommandsIds.Split(","))
     {
-        Id = Guid.NewGuid(),
-        Schema = string.Join("-", chosenCommandsIds?.Split(",")
-            .Select(commandId => _commands
-                .FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))))!)
-    }));
+        var matchedCommand =  _commands
+            .FirstOrDefault(c => c.Value.Equals(int.Parse($"{chosenCommandId}")));
+
+        var flag = chosenCommandId.Equals("2") || chosenCommandId.Equals("3");
+        
+        var tmpObj = new SchemaCommandViewModel
+        {
+            Id = matchedCommand.Value.ToString(),
+            Name = matchedCommand.Key,
+            TrueCaseScenario = flag ? string.Join("-", commandsIdsIfTrue!.Split(",")
+                .Select(x => _commands
+                    .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))) : "",
+            FalseCaseScenario = flag ? string.Join("-", commandsIdsIfFalse!.Split(",")
+                .Select(x => _commands
+                    .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))) : "",
+            BaseSchemaId = baseSchemaId
+        };
+        
+        schemaToBeInserted.Add(JsonConvert.SerializeObject(tmpObj));
+    }
+
+    // var schemaToBeInserted = chosenCommandsIds.Split(",")
+    //     .Select(commandId => commandId.Equals("2") || commandId.Equals("3") ? (object)new
+    //     {
+    //         Name = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Key,
+    //         Id = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Value,
+    // TrueCaseScenario = string.Join("-", commandsIdsIfTrue!.Split(",")
+    //     .Select(x => _commands
+    //         .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))),
+    // FalseCaseScenario = string.Join("-", commandsIdsIfFalse!.Split(",")
+    //     .Select(x => _commands
+    //         .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))),
+    //     } : new
+    //     {
+    //         Name = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Key,
+    //         Id = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Value
+    //     });
+
+    await File.AppendAllTextAsync(filename ?? throw new InvalidOperationException(), 
+        string.Join("--", schemaToBeInserted) + "\n");
+    
+    // JsonSerializer.Serialize(new FileDataViewModel
+    // {
+    //     Id = Guid.NewGuid(),
+    //     Schema = string.Join("-", schemaToBeInserted)
+    // })
 
     Console.WriteLine("All went good");
-    
-    // new
-    // {
-    // //     Id = Guid.NewGuid().ToString(),
-    //     Schema = string.Join(" ", chosenCommandsIds?.Split(",")
-    //         .Select(commandId => _commands
-    //             .FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))))!)
-    // } + "\n"
 }
 
    public static async Task ModifySchemas()
@@ -56,107 +129,193 @@ public static class Schema
 
        var schemaId = Console.ReadLine(); // Guid
 
-       var path = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
-
-       // await using var fs = new FileStream($"{path}\\{filename}", FileMode.Open);
-       //
-       // var schemas = await JsonSerializer
-       //     .DeserializeAsync<List<FileDataViewModel>>(fs);
-
        var lines = await File.ReadAllLinesAsync(filename!);
 
-       var schema = "";
+       var index = 0;
        
-       var index = -1;
-       
-       var counter = 0;
+       var schema = string.Empty;
 
        foreach (var line in lines)
        {
-           var parsedLine = JsonSerializer.Deserialize<FileDataViewModel>(line);
+           var tmp = line.Split("--");
+        
+           var parsedLine = tmp
+               .FirstOrDefault(x => JsonConvert.DeserializeObject<SchemaCommandViewModel>(x)!.BaseSchemaId.Equals(Guid.Parse(schemaId)));
+        
 
-           if (parsedLine!.Id.Equals(Guid.Parse(schemaId ?? throw new InvalidOperationException())))
+           if (parsedLine != null)
            {
-               schema = parsedLine.Schema;
-               index = counter;
+               schema = line;
+               break;
            }
 
-           counter++;
+           index++;
        }
-
-       if (string.IsNullOrEmpty(schema))
-       {
-           Console.WriteLine("Couldn't find schema");
-           return;
-       }
-
-       var schemasArray = schema.Split("-");
-
-       Console.WriteLine("Please, enter type of modification: 1 - change all commands by id; 2 - delete commands by id");
-
-       var userResponse = Console.ReadLine();
-
-       Console.WriteLine("Please, enter command id");
        
-       var commandId = Console.ReadLine();
+       var commands = schema.Split("--");
+       
+       var parsedCommands = new List<SchemaCommandViewModel>();
+       
+       foreach (var command in commands)
+       {
+           parsedCommands.Add(JsonConvert.DeserializeObject<SchemaCommandViewModel>(command)!);
+       }
+       
+       Console.WriteLine("Please, enter type of modification: 1 - change all commands by id; 2 - delete commands by id");
+       
+       var userResponse = Console.ReadLine();
+       
+       Console.WriteLine("Please, enter command id");
 
-       var updatedCommandsIds = "";
+       var commandId = Console.ReadLine();
+       
+       var chosenCommand = _commands.First(c => c.Value.Equals(int.Parse(commandId!)));
 
        if (userResponse!.Equals("1"))
        {
-           Console.WriteLine("Please, enter new command id to replace old ones");
-           
+           Console.WriteLine("Please, enter new command id");
+
            var newCommandId = Console.ReadLine();
+           
+           var newCommand = _commands.First(c => c.Value.Equals(int.Parse(newCommandId!)));
 
-           var tmp = Regex.Matches(schema, @"\d+");
-
-           var tmpArray =
-               tmp.Cast<Match>().Select(m => m.Value).ToList();
-
-           for (var i = 0; i < tmpArray.Count; i++)
+           foreach (var parsedCommand in parsedCommands)
            {
-               if (tmpArray[i].Equals(commandId))
+               if (parsedCommand.Id.Equals(chosenCommand.Value.ToString()))
                {
-                   tmpArray[i] = newCommandId!;
+                   parsedCommand.Id = newCommand.Value.ToString();
+                   parsedCommand.Name = newCommand.Key;
                }
            }
-
-           updatedCommandsIds = string.Join(",", tmpArray);
-
-           //
-           // var newCommand = _commands
-           //     .First(x => x.Value.Equals(Int32.Parse(newCommandId!))).Key;
-           //
-           // schemasArray = schemasArray.Where(x => x.Contains($"{commandId}"))
-           //     .Select(c => new Regex(@"\w").Replace(c,newCommand)).ToArray();
        }
        else
        {
-           var tmp = Regex.Matches(schema, @"\d+");
-           
-           var tmpArray =
-               tmp.Cast<Match>().Select(m => m.Value).ToList();
-           
-           updatedCommandsIds = string.Join(",", tmpArray.Where(x => x != commandId));
-           //schemasArray = schemasArray.Where(x => x.Contains($"{commandId}") == false).ToArray();
+           parsedCommands = parsedCommands.Where(c => c.Id != chosenCommand.Value.ToString()).ToList();
        }
 
-       lines[index] = JsonSerializer.Serialize(new FileDataViewModel
-       {
-           Id = Guid.Parse(schemaId!),
-           Schema = string.Join("-", updatedCommandsIds?.Split(",").Where(c => string.IsNullOrEmpty(c) == false)
-               .Select(id =>  _commands
-                   .FirstOrDefault(c => c.Value.Equals(int.Parse(id))))!)
-       });
+       lines[index] = parsedCommands.Select(JsonConvert.SerializeObject).ToString()!;
 
        await File.WriteAllLinesAsync(filename!, lines);
-
+       
        Console.WriteLine("All went good while modifying schema");
+
+
+       // var schema = "";
+       //
+       // var index = -1;
+       //
+       // var counter = 0;
+       //
+       // foreach (var line in lines)
+       // {
+       //     var parsedLine = JsonSerializer.Deserialize<FileDataViewModel>(line);
+       //
+       //     if (parsedLine!.Id.Equals(Guid.Parse(schemaId ?? throw new InvalidOperationException())))
+       //     {
+       //         schema = parsedLine.Schema;
+       //         index = counter;
+       //     }
+       //
+       //     counter++;
+       // }
+       //
+       // if (string.IsNullOrEmpty(schema))
+       // {
+       //     Console.WriteLine("Couldn't find schema");
+       //     return;
+       // }
+       //
+       // Console.WriteLine("Please, enter type of modification: 1 - change all commands by id; 2 - delete commands by id");
+       //
+       // var userResponse = Console.ReadLine();
+       //
+       // Console.WriteLine("Please, enter command id");
+       //
+       // var commandId = Console.ReadLine();
+       //
+       // var updatedCommandsIds = "";
+       //
+       // if (userResponse!.Equals("1"))
+       // {
+       //     Console.WriteLine("Please, enter new command id to replace old ones");
+       //     
+       //     var newCommandId = Console.ReadLine();
+       //
+       //     var tmp = Regex.Matches(schema, @"\d+");
+       //
+       //     var tmpArray =
+       //         tmp.Cast<Match>().Select(m => m.Value).ToList();
+       //
+       //     for (var i = 0; i < tmpArray.Count; i++)
+       //     {
+       //         if (tmpArray[i].Equals(commandId))
+       //         {
+       //             tmpArray[i] = newCommandId!;
+       //         }
+       //     }
+       //
+       //     updatedCommandsIds = string.Join(",", tmpArray);
+       // }
+       // else
+       // {
+       //     var tmp = Regex.Matches(schema, @"\d+");
+       //     
+       //     var tmpArray =
+       //         tmp.Cast<Match>().Select(m => m.Value).ToList();
+       //     
+       //     updatedCommandsIds = string.Join(",", tmpArray.Where(x => x != commandId));
+       // }
+       //
+       // lines[index] = JsonSerializer.Serialize(new FileDataViewModel
+       // {
+       //     Id = Guid.Parse(schemaId!),
+       //     Schema = string.Join("-", updatedCommandsIds?.Split(",").Where(c => string.IsNullOrEmpty(c) == false)
+       //         .Select(id =>  _commands
+       //             .FirstOrDefault(c => c.Value.Equals(int.Parse(id))))!)
+       // });
+       //
+       // await File.WriteAllLinesAsync(filename!, lines);
+       //
+       // Console.WriteLine("All went good while modifying schema");
    }
    
 
-public static void ExecuteSchemaById()
+public static async Task ExecuteSchemaById()
 {
+    Console.WriteLine("Please, enter filename");
+       
+    var filename = Console.ReadLine();
+
+    Console.WriteLine("Please, enter schema id");
+
+    var schemaId = Console.ReadLine(); // Guid
+
+    var lines = await File.ReadAllLinesAsync(filename!);
+
+    var schema = string.Empty;
+
+    foreach (var line in lines)
+    {
+        var tmp = line.Split("--");
+        
+        var parsedLine = tmp
+            .FirstOrDefault(x => JsonConvert.DeserializeObject<SchemaCommandViewModel>(x)!.BaseSchemaId.Equals(Guid.Parse(schemaId)));
+        
+
+        if (parsedLine != null)
+        {
+            schema = line;
+        }
+    }
+    
+    var commands = schema.Split("--");
+    
+    foreach (var command in commands)
+    {
+        var tmp = JsonConvert.DeserializeObject<SchemaCommandViewModel>(command);
+        Console.WriteLine(tmp);
+    }
+
     // foreach (var chosenCommandId in chosenCommandsIds!)
     // {
     //     switch (chosenCommandId)

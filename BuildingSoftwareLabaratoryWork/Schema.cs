@@ -35,9 +35,7 @@ public static class Schema
     
    public static async Task CreateSchema()
 {
-    //TODO : 1) if user adds compare commands then we gotta ask him about flow, they should specify what happens if condition is
-    // TODO: true and when false 
-
+   
     Console.WriteLine("Write up ids of commands with comma as separator");
 
     var chosenCommandsIds = Console.ReadLine();
@@ -89,32 +87,11 @@ public static class Schema
         
         schemaToBeInserted.Add(JsonConvert.SerializeObject(tmpObj));
     }
-
-    // var schemaToBeInserted = chosenCommandsIds.Split(",")
-    //     .Select(commandId => commandId.Equals("2") || commandId.Equals("3") ? (object)new
-    //     {
-    //         Name = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Key,
-    //         Id = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Value,
-    // TrueCaseScenario = string.Join("-", commandsIdsIfTrue!.Split(",")
-    //     .Select(x => _commands
-    //         .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))),
-    // FalseCaseScenario = string.Join("-", commandsIdsIfFalse!.Split(",")
-    //     .Select(x => _commands
-    //         .FirstOrDefault(c => c.Value.Equals(int.Parse(x))))),
-    //     } : new
-    //     {
-    //         Name = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Key,
-    //         Id = _commands.FirstOrDefault(c => c.Value.Equals(int.Parse(commandId))).Value
-    //     });
+    
 
     await File.AppendAllTextAsync(filename ?? throw new InvalidOperationException(), 
         string.Join("--", schemaToBeInserted) + "\n");
     
-    // JsonSerializer.Serialize(new FileDataViewModel
-    // {
-    //     Id = Guid.NewGuid(),
-    //     Schema = string.Join("-", schemaToBeInserted)
-    // })
 
     Console.WriteLine("All went good");
 }
@@ -280,7 +257,7 @@ public static class Schema
    }
    
 
-public static async Task ExecuteSchemaById()
+    public static async Task ExecuteSchemaById()
 {
     Console.WriteLine("Please, enter filename");
        

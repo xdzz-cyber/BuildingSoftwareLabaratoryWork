@@ -36,14 +36,63 @@ public static class Worker
         return (commandsIdsIfFalse, commandsIdsIfTrue);
     }
 
+    private static void InsertNodeChildren(SchemaModel root)
+    {
+        var commandsIdsIfConditionExists = ReturnRequestedCommandsIdsIfConditionExist();
+
+        foreach (var commandIdIfTrue in commandsIdsIfConditionExists.Item2)
+        {
+            var newRoot = new SchemaModel
+            {
+                Id = ObjectId.GenerateNewId(),
+                Operation = _commands
+                    .FirstOrDefault(c => c.Value
+                        .Equals(int.Parse($"{commandIdIfTrue}"))).Key,
+                LeftChildren = null,
+                RightChildren = null
+            };
+            
+            root.RightChildren = root.RightChildren is null
+                ? new List<SchemaModel>
+                {
+                    newRoot
+                } : root.RightChildren.Concat(new []{newRoot}).ToList();
+            
+            if (commandIdIfTrue.Equals("2") || commandIdIfTrue.Equals("3"))
+            {
+                InsertNodeChildren(newRoot);
+            }
+        }
+
+        foreach (var commandIdIfFalse in commandsIdsIfConditionExists.Item1)
+        {
+            var newRoot = new SchemaModel
+            {
+                Id = ObjectId.GenerateNewId(),
+                Operation = _commands
+                    .FirstOrDefault(c => c.Value
+                        .Equals(int.Parse($"{commandIdIfFalse}"))).Key,
+                LeftChildren = null,
+                RightChildren = null
+            };
+                
+            root.LeftChildren = root.LeftChildren is null
+                ? new List<SchemaModel>
+                {
+                    newRoot
+                } : root.LeftChildren.Concat(new []{newRoot}).ToList();
+            
+            if (commandIdIfFalse.Equals("2") || commandIdIfFalse.Equals("3"))
+            {
+                InsertNodeChildren(newRoot);
+            }
+        }
+    }
+
     public static async Task CreateSchema()
     {
         var schemasCollectionObject = GetSchemas();
-        //
-        // var schemasCollectionList = 
-        //     await schemasCollectionObject.Find(new BsonDocument()).ToListAsync();
-
-        // ----------
+        
         Console.WriteLine("Write up ids of commands with comma as separator");
 
         var chosenCommandsIds = Console.ReadLine()!.Split(",");
@@ -62,151 +111,16 @@ public static class Worker
                 LeftChildren = null,
                 RightChildren = null
             };
-            
+
             if (chosenCommandsIds[i].Equals("2") || chosenCommandsIds[i].Equals("3"))
             {
-                while (true)
-                {
-                    var commandsIdsIfConditionExists = ReturnRequestedCommandsIdsIfConditionExist();
-
-                    foreach (var commandIdIfTrue in commandsIdsIfConditionExists.Item2) // 1,2,-3,4-5,6; 1,2,3,2,1
-                    {
-                        if (commandsIdsIfConditionExists.Item2.Any(c => c.Equals("2") || c.Equals("3")))
-                        {
-                            newSchemaObject.RightChildren = newSchemaObject.RightChildren is null
-                                ? new List<SchemaModel>
-                                {
-                                    new()
-                                    {
-                                        Id = ObjectId.GenerateNewId(),
-                                        Operation = _commands
-                                            .FirstOrDefault(c => c.Value
-                                                .Equals(int.Parse($"{commandIdIfTrue}"))).Key,
-                                        LeftChildren = null,
-                                        RightChildren = null
-                                    }
-                                } : newSchemaObject.RightChildren.Concat(new []{new SchemaModel
-                                {
-                                    Id = ObjectId.GenerateNewId(),
-                                    Operation = _commands
-                                        .FirstOrDefault(c => c.Value
-                                            .Equals(int.Parse($"{commandIdIfTrue}"))).Key,
-                                    LeftChildren = null,
-                                    RightChildren = null   
-                                }}).ToList();
-                        }
-                        else
-                        {
-                            
-                        }  
-                    }
-
-                    foreach (var commandIdIfFalse in commandsIdsIfConditionExists.Item1)
-                    {
-                        if (commandsIdsIfConditionExists.Item2.Any(c => c.Equals("2") || c.Equals("3")))
-                        {
-                            newSchemaObject.LeftChildren = newSchemaObject.LeftChildren is null
-                                ? new List<SchemaModel>
-                                {
-                                    new()
-                                    {
-                                        Id = ObjectId.GenerateNewId(),
-                                        Operation = _commands
-                                            .FirstOrDefault(c => c.Value
-                                                .Equals(int.Parse($"{commandIdIfFalse}"))).Key,
-                                        LeftChildren = null,
-                                        RightChildren = null
-                                    }
-                                } : newSchemaObject.LeftChildren.Concat(new []{new SchemaModel
-                                {
-                                    Id = ObjectId.GenerateNewId(),
-                                    Operation = _commands
-                                        .FirstOrDefault(c => c.Value
-                                            .Equals(int.Parse($"{commandIdIfFalse}"))).Key,
-                                    LeftChildren = null,
-                                    RightChildren = null   
-                                }}).ToList();
-                        }
-                        else
-                        {
-                            
-                        }  
-                    }
-
-                    if (commandsIdsIfConditionExists.Item2.Any(x => x.Equals("2") || x.Equals("3"))
-                        || commandsIdsIfConditionExists.Item1.Any(y => y.Equals("2") || y.Equals("3")))
-                        break;
-                }
+                InsertNodeChildren(newSchemaObject);
             }
-
+            
             newSchemasObject.Add(newSchemaObject);
         }
 
         await schemasCollectionObject.InsertManyAsync(newSchemasObject);
-
-        // await schemasCollectionObject.InsertManyAsync(chosenCommandsIds!.Split(",")
-        //     .Select(x => new SchemaModel
-        //     {
-        //         Id = ObjectId.GenerateNewId(),
-        //         Operation = _commands
-        //             .FirstOrDefault(c => c.Value.Equals(int.Parse($"{x}"))).Key,
-        //         LeftChild = null,
-        //         RightChild = null
-        //     }).ToList());
-
-
-        // var commandsIdsIfTrue = string.Empty;
-        //
-        // var commandsIdsIfFalse = string.Empty;
-        //
-        // foreach (var chosenCommandId in chosenCommandsIds!.Split(","))
-        // {
-        //     if (!chosenCommandId.Equals("2") && !chosenCommandId.Equals("3")) continue;
-        //
-        //     Console.WriteLine("Please, enter commands ids that will be executed in case of true");
-        //
-        //     commandsIdsIfTrue = Console.ReadLine();
-        //
-        //     Console.WriteLine("Please, enter commands ids that will be executed in case of false");
-        //
-        //     commandsIdsIfFalse = Console.ReadLine();
-        // }
-
-
-        //var schemaToBeInserted = new List<string?>();
-
-        // var baseSchemaId = Guid.NewGuid();
-        //
-        // foreach (var chosenCommandId in chosenCommandsIds.Split(","))
-        // {
-        //     var matchedCommand = _commands
-        //         .FirstOrDefault(c => c.Value.Equals(int.Parse($"{chosenCommandId}")));
-        //
-        //     var flag = chosenCommandId.Equals("2") || chosenCommandId.Equals("3");
-        //
-        //     var tmpObj = new SchemaCommandViewModel
-        //     {
-        //         Id = matchedCommand.Value.ToString(),
-        //         Name = matchedCommand.Key,
-        //         TrueCaseScenario = flag
-        //             ? string.Join("-", commandsIdsIfTrue!.Split(",")
-        //                 .Select(x => _commands
-        //                     .FirstOrDefault(c => c.Value.Equals(int.Parse(x)))))
-        //             : "",
-        //         FalseCaseScenario = flag
-        //             ? string.Join("-", commandsIdsIfFalse!.Split(",")
-        //                 .Select(x => _commands
-        //                     .FirstOrDefault(c => c.Value.Equals(int.Parse(x)))))
-        //             : "",
-        //         BaseSchemaId = baseSchemaId
-        //     };
-        //
-        //     schemaToBeInserted.Add(JsonConvert.SerializeObject(tmpObj));
-        // }
-
-
-        // await File.AppendAllTextAsync(filename ?? throw new InvalidOperationException(),
-        //     string.Join("--", schemaToBeInserted) + "\n");
 
 
         Console.WriteLine("All went good");

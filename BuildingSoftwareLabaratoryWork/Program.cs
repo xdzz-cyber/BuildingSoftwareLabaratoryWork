@@ -29,7 +29,7 @@ while (response != "6")
             Worker.ShowSchemas();
             break;
         case "3":
-            //Schema.ModifySchemas().GetAwaiter().GetResult();
+            Worker.ModifySchema().GetAwaiter().GetResult();
             break;
         case "4":
             //Schema.ExecuteSchemaById().GetAwaiter().GetResult();

@@ -126,6 +126,53 @@ public static class Worker
         Console.WriteLine("All went good");
     }
 
+    public static async Task ModifySchema()
+    {
+        var schemasCollectionObject = GetSchemas();
+        
+        Console.WriteLine("Write up id of the schema");
+
+        var schemaId = Console.ReadLine()!;
+
+        var foundSchema = schemasCollectionObject.AsQueryable()
+            .ToList().FirstOrDefault(schema => schemaId == schema.Id.ToString());
+
+        if (foundSchema is null)
+        {
+            Console.WriteLine("Bad schema id given");
+            return;
+        }
+        
+        Console.WriteLine("Please, entry new command id");
+
+        var newCommandId = Console.ReadLine();
+        
+        var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.Id);
+
+        var matchedCommandOperationName =
+            _commands.FirstOrDefault(c => c.Value.Equals(int.Parse($"{newCommandId}"))).Key; 
+
+        if (foundSchema.Operation.Equals("CompareLess") || foundSchema.Operation.Equals("CompareEqual"))
+        {
+            foundSchema.Operation = matchedCommandOperationName;
+
+            foundSchema.LeftChildren = foundSchema.RightChildren = null;
+
+            InsertNodeChildren(foundSchema);
+
+            await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema);
+        }
+        else
+        {
+            var updatedSchema = Builders<SchemaModel>.Update.Set("Operation",
+                matchedCommandOperationName);
+
+            await schemasCollectionObject.UpdateOneAsync(filter,updatedSchema);
+        }
+
+        Console.WriteLine("All went good while updating");
+    }
+
     public static void ShowSchemas()
     {
         var schemasCollectionObject = GetSchemas();

@@ -32,7 +32,7 @@ while (response != "6")
             Worker.ModifySchema().GetAwaiter().GetResult();
             break;
         case "4":
-            //Schema.ExecuteSchemaById().GetAwaiter().GetResult();
+            Worker.ExecuteSchemasByIds().GetAwaiter().GetResult();
             break;
         default:
             //Console.WriteLine("Please, enter correct command");

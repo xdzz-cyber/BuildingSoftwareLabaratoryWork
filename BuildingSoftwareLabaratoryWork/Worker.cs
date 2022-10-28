@@ -109,7 +109,8 @@ public static class Worker
                 Id = ObjectId.GenerateNewId(),
                 Operation = matchedCommand.Key,
                 LeftChildren = null,
-                RightChildren = null
+                RightChildren = null,
+                Next = null
             };
 
             if (chosenCommandsIds[i].Equals("2") || chosenCommandsIds[i].Equals("3"))
@@ -117,10 +118,15 @@ public static class Worker
                 InsertNodeChildren(newSchemaObject);
             }
             
+            if (i > 0)
+            {
+                newSchemasObject[i - 1].Next = newSchemaObject;
+            }
+            
             newSchemasObject.Add(newSchemaObject);
         }
 
-        await schemasCollectionObject.InsertManyAsync(newSchemasObject);
+        await schemasCollectionObject.InsertOneAsync(newSchemasObject.First());
 
 
         Console.WriteLine("All went good");
@@ -150,27 +156,38 @@ public static class Worker
         var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.Id);
 
         var matchedCommandOperationName =
-            _commands.FirstOrDefault(c => c.Value.Equals(int.Parse($"{newCommandId}"))).Key; 
+            _commands.FirstOrDefault(c => c.Value.Equals(int.Parse($"{newCommandId}"))).Key;
 
-        if (foundSchema.Operation.Equals("CompareLess") || foundSchema.Operation.Equals("CompareEqual"))
+        foundSchema.LeftChildren = foundSchema.RightChildren = null;
+
+        foundSchema.Operation = matchedCommandOperationName;
+        
+        if (newCommandId!.Equals("2") || newCommandId.Equals("3"))
         {
-            foundSchema.Operation = matchedCommandOperationName;
-
-            foundSchema.LeftChildren = foundSchema.RightChildren = null;
-
             InsertNodeChildren(foundSchema);
-
-            await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema);
         }
-        else
-        {
-            var updatedSchema = Builders<SchemaModel>.Update.Set("Operation",
-                matchedCommandOperationName);
 
-            await schemasCollectionObject.UpdateOneAsync(filter,updatedSchema);
-        }
+        await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema);
 
         Console.WriteLine("All went good while updating");
+    }
+
+    public static async Task ExecuteSchemasByIds()
+    {
+        Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
+
+        var schemasIds = Console.ReadLine()!.Split(",");
+        
+        var schemasCollection = GetSchemas()
+            .AsQueryable().ToList();
+
+        foreach (var schema in schemasCollection.Where(schema => schemasIds.Contains(schema.Id.ToString())))
+        {
+            // foreach (var operation in schema.)
+            // {
+            //     
+            // }
+        }
     }
 
     public static void ShowSchemas()
@@ -187,7 +204,16 @@ public static class Worker
             
             if (schema.LeftChildren is not null || schema.RightChildren is not null)
             {
-                GetAllChildrenInfo(schemas, response);
+                GetAllChildrenInfo(schema, response); //schemas
+            }
+
+            while (schema.Next is not null)
+            {
+                response.Append($"--> Next = {schema.Id}-{schema.Next.Operation}");
+                
+                GetAllChildrenInfo(schema.Next, response);
+
+                schema.Next = schema.Next.Next;
             }
         }
 
@@ -196,33 +222,54 @@ public static class Worker
         Console.WriteLine(tmp);
     }
 
-    private static void GetAllChildrenInfo(List<SchemaModel> root, StringBuilder allLines)
+    private static void GetAllChildrenInfo(SchemaModel root, StringBuilder allLines)
     {
-        foreach (var rootChild in root)
+        if (root.LeftChildren is not null)
         {
-            if (rootChild.LeftChildren is not null)
-            {
-                allLines.Append("\tLeftChildren:");
+            allLines.Append("\tLeftChildren:");
                     
-                foreach (var leftChild in rootChild.LeftChildren)
-                {
-                    allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");    
-                }
-
-                GetAllChildrenInfo(rootChild.LeftChildren, allLines);
+            foreach (var leftChild in root.LeftChildren)
+            {
+                allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");    
             }
 
-            if (rootChild.RightChildren is null) continue;
+            GetAllChildrenInfo(root.LeftChildren.First(), allLines);
+        }
 
+        if (root.RightChildren is not null)
+        {
             allLines.Append("\tRightChildren:");
                 
-            foreach (var rightChild in rootChild.RightChildren)
+            foreach (var rightChild in root.RightChildren)
             {
                 allLines.Append($"{rightChild.Id}-{rightChild.Operation}-->");    
             }
 
-            GetAllChildrenInfo(rootChild.RightChildren, allLines);
+            GetAllChildrenInfo(root.RightChildren.First(), allLines);
         }
-            
+
+    }
+
+    private static void ExecuteSingleCommand(string operationName)
+    {
+        switch (operationName)
+        {
+            case "Assign":
+                break;
+            case "CompareLess":
+                break;
+            case "CompareEqual":
+                break;
+            case "ReadNStore":
+                break;
+            case "PrintValue":
+                break;
+            case "ShowState":
+                break;
+            case "ShowConstants":
+                break;
+            default:
+                break;
+        }
     }
 }

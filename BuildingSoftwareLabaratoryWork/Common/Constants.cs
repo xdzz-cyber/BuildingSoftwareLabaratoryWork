@@ -1,4 +1,4 @@
-﻿namespace BuildingSoftwareLabaratoryWork;
+﻿namespace BuildingSoftwareLabaratoryWork.Common;
 
 internal static class Constants
 {

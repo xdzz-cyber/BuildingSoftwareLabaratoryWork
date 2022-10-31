@@ -3,13 +3,13 @@ using BuildingSoftwareLabaratoryWork;
 using BuildingSoftwareLabaratoryWork.Common;
 
 //var tasks = new ConcurrentQueue<Task>();
-//var state = new ConcurrentDictionary<string, int>();
+var state = new ConcurrentDictionary<string, int>();
 
 Console.WriteLine("1 - create new schema\n2 - show schemas" +
                   "\n3 - modify schema by id\n4 - execute schema by id\n5 - test schema by id\n6 - exit");
 
 var response = Console.ReadLine();
-Worker.Init(Operations.operations, MongoDbInformation.GetClient());
+Worker.Init(Operations.operations, state , MongoDbInformation.GetClient());
 //Schema.Init(Operations.operations);
 
 while (response != "6")
@@ -32,7 +32,7 @@ while (response != "6")
             Worker.ModifySchema().GetAwaiter().GetResult();
             break;
         case "4":
-            Worker.ExecuteSchemasByIds().GetAwaiter().GetResult();
+            Worker.ExecuteSchemasByIds();
             break;
         default:
             //Console.WriteLine("Please, enter correct command");

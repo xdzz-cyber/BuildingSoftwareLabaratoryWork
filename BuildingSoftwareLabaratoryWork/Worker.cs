@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Text;
 using BuildingSoftwareLabaratoryWork.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -7,12 +8,14 @@ namespace BuildingSoftwareLabaratoryWork;
 
 public static class Worker
 {
-    private static Dictionary<string, int> _commands;
+    private static Dictionary<string, Action> _commands;
     private static MongoClient _mongoClient;
+    private static ConcurrentDictionary<string, int> _state;
 
-    public static void Init(Dictionary<string, int> commands, MongoClient mongoClient)
+    public static void Init(Dictionary<string, Action> commands, ConcurrentDictionary<string, int> state,MongoClient mongoClient)
     {
         _commands = commands;
+        _state = state;
         _mongoClient = mongoClient;
     }
 
@@ -172,7 +175,7 @@ public static class Worker
         Console.WriteLine("All went good while updating");
     }
 
-    public static async Task ExecuteSchemasByIds()
+    public static Task ExecuteSchemasByIds()
     {
         Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
@@ -183,11 +186,42 @@ public static class Worker
 
         foreach (var schema in schemasCollection.Where(schema => schemasIds.Contains(schema.Id.ToString())))
         {
-            // foreach (var operation in schema.)
-            // {
-            //     
-            // }
+            WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
+            
+            var schemaCopy = schema;
+            
+            while (schemaCopy.Next is not null)
+            {
+                commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
+
+                if (schemaCopy.Operation.Equals("CompareLess") || schemaCopy.Operation.Equals("CompareEqual"))
+                {
+                 
+                    Console.WriteLine("Please, enter value name to compare with comma as separator");
+
+                    var variableName = Console.ReadLine();
+                
+                    Console.WriteLine("Please, enter constant name to compare with comma as separator");
+
+                    var constantName = Console.ReadLine();
+
+                    var result = schema.Operation.Equals("CompareLess")
+                        ? Operations.Compare(variableName!, constantName!) == -1
+                        : Operations.Compare(variableName!, constantName!) == 0;
+
+                    var commandsToBeExecutedBasedOnResult = result 
+                        ? schemaCopy.RightChildren : schemaCopy.LeftChildren;
+
+                    commonDelegate = commandsToBeExecutedBasedOnResult!
+                        .Aggregate(commonDelegate, (current, commandToBeExecutedBasedOnResult) 
+                            => current + (_ => Operations.GetOperationByName(commandToBeExecutedBasedOnResult.Operation)));   
+                }
+                schemaCopy = schemaCopy.Next;
+            }
+            ThreadPool.QueueUserWorkItem(commonDelegate);   
         }
+
+        return Task.CompletedTask; //.WaitAsync(new CancellationToken());
     }
 
     public static void ShowSchemas()
@@ -248,28 +282,5 @@ public static class Worker
             GetAllChildrenInfo(root.RightChildren.First(), allLines);
         }
 
-    }
-
-    private static void ExecuteSingleCommand(string operationName)
-    {
-        switch (operationName)
-        {
-            case "Assign":
-                break;
-            case "CompareLess":
-                break;
-            case "CompareEqual":
-                break;
-            case "ReadNStore":
-                break;
-            case "PrintValue":
-                break;
-            case "ShowState":
-                break;
-            case "ShowConstants":
-                break;
-            default:
-                break;
-        }
     }
 }

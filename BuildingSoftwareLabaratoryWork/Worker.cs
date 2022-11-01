@@ -26,31 +26,30 @@ public static class Worker
         return testDb.GetCollection<SchemaModel>("schemas");
     }
 
-    private static (List<string>, List<string>) ReturnRequestedCommandsIdsIfConditionExist()
+    private static (List<string>, List<string>) ReturnRequestedCommandsIfConditionExist()
     {
-        Console.WriteLine("Please, enter commands ids that will be executed in case of true");
+        Console.WriteLine("Please, enter commands that will be executed in case of true");
 
-        var commandsIdsIfTrue = Console.ReadLine()!.Split(",").ToList();
+        var commandsIfTrue = Console.ReadLine()!.Split(",").ToList();
 
-        Console.WriteLine("Please, enter commands ids that will be executed in case of false");
+        Console.WriteLine("Please, enter commands that will be executed in case of false");
 
-        var commandsIdsIfFalse = Console.ReadLine()!.Split(",").ToList();
+        var commandsIfFalse = Console.ReadLine()!.Split(",").ToList();
 
-        return (commandsIdsIfFalse, commandsIdsIfTrue);
+        return (commandsIfFalse, commandsIfTrue);
     }
 
     private static void InsertNodeChildren(SchemaModel root)
     {
-        var commandsIdsIfConditionExists = ReturnRequestedCommandsIdsIfConditionExist();
+        var commandsIfConditionExists = ReturnRequestedCommandsIfConditionExist();
 
-        foreach (var commandIdIfTrue in commandsIdsIfConditionExists.Item2)
+        foreach (var commandIfTrue in commandsIfConditionExists.Item2)
         {
             var newRoot = new SchemaModel
             {
                 Id = ObjectId.GenerateNewId(),
                 Operation = _commands
-                    .FirstOrDefault(c => c.Value
-                        .Equals(int.Parse($"{commandIdIfTrue}"))).Key,
+                    .FirstOrDefault(c => c.Key.Equals(commandIfTrue)).Key,
                 LeftChildren = null,
                 RightChildren = null
             };
@@ -61,20 +60,19 @@ public static class Worker
                     newRoot
                 } : root.RightChildren.Concat(new []{newRoot}).ToList();
             
-            if (commandIdIfTrue.Equals("2") || commandIdIfTrue.Equals("3"))
+            if (commandIfTrue.Equals("CompareLess") || commandIfTrue.Equals("CompareEqual"))
             {
                 InsertNodeChildren(newRoot);
             }
         }
 
-        foreach (var commandIdIfFalse in commandsIdsIfConditionExists.Item1)
+        foreach (var commandIfFalse in commandsIfConditionExists.Item1)
         {
             var newRoot = new SchemaModel
             {
                 Id = ObjectId.GenerateNewId(),
                 Operation = _commands
-                    .FirstOrDefault(c => c.Value
-                        .Equals(int.Parse($"{commandIdIfFalse}"))).Key,
+                    .FirstOrDefault(c => c.Key.Equals(commandIfFalse)).Key,
                 LeftChildren = null,
                 RightChildren = null
             };
@@ -85,7 +83,7 @@ public static class Worker
                     newRoot
                 } : root.LeftChildren.Concat(new []{newRoot}).ToList();
             
-            if (commandIdIfFalse.Equals("2") || commandIdIfFalse.Equals("3"))
+            if (commandIfFalse.Equals("CompareLess") || commandIfFalse.Equals("CompareEqual"))
             {
                 InsertNodeChildren(newRoot);
             }
@@ -96,16 +94,16 @@ public static class Worker
     {
         var schemasCollectionObject = GetSchemas();
         
-        Console.WriteLine("Write up ids of commands with comma as separator");
+        Console.WriteLine("Write up commands with comma as separator");
 
-        var chosenCommandsIds = Console.ReadLine()!.Split(",");
+        var chosenCommands = Console.ReadLine()!.Split(",");
 
         var newSchemasObject = new List<SchemaModel>();
 
-        for (var i = 0; i < chosenCommandsIds.Length; i++)
+        for (var i = 0; i < chosenCommands.Length; i++)
         {
             var matchedCommand = _commands
-                .FirstOrDefault(c => c.Value.Equals(int.Parse($"{chosenCommandsIds[i]}")));
+                .FirstOrDefault(c => c.Key.Equals(chosenCommands[i]));
 
             var newSchemaObject = new SchemaModel
             {
@@ -116,7 +114,7 @@ public static class Worker
                 Next = null
             };
 
-            if (chosenCommandsIds[i].Equals("2") || chosenCommandsIds[i].Equals("3"))
+            if (chosenCommands[i].Equals("CompareLess") || chosenCommands[i].Equals("CompareEqual"))
             {
                 InsertNodeChildren(newSchemaObject);
             }
@@ -152,20 +150,20 @@ public static class Worker
             return;
         }
         
-        Console.WriteLine("Please, entry new command id");
+        Console.WriteLine("Please, entry new command");
 
-        var newCommandId = Console.ReadLine();
+        var newCommand = Console.ReadLine();
         
         var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.Id);
 
         var matchedCommandOperationName =
-            _commands.FirstOrDefault(c => c.Value.Equals(int.Parse($"{newCommandId}"))).Key;
+            _commands.FirstOrDefault(c => c.Key.Equals(newCommand)).Key;
 
         foundSchema.LeftChildren = foundSchema.RightChildren = null;
 
         foundSchema.Operation = matchedCommandOperationName;
         
-        if (newCommandId!.Equals("2") || newCommandId.Equals("3"))
+        if (newCommand!.Equals("CompareLess") || newCommand.Equals("CompareEqual"))
         {
             InsertNodeChildren(foundSchema);
         }
@@ -175,7 +173,7 @@ public static class Worker
         Console.WriteLine("All went good while updating");
     }
 
-    public static Task ExecuteSchemasByIds()
+    public static void ExecuteSchemasByIds()
     {
         Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
@@ -184,15 +182,20 @@ public static class Worker
         var schemasCollection = GetSchemas()
             .AsQueryable().ToList();
 
+        //var threads = new List<Thread>();
+        
         foreach (var schema in schemasCollection.Where(schema => schemasIds.Contains(schema.Id.ToString())))
         {
-            WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
-            
+            //WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
+            //var commonDelegate = new Action<object>(_ => Console.Beep());
             var schemaCopy = schema;
+            
+            var operationsToBeExecuted = new List<string> {schemaCopy.Operation};
             
             while (schemaCopy.Next is not null)
             {
-                commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
+                operationsToBeExecuted.Add(schemaCopy.Next.Operation);
+                //commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
 
                 if (schemaCopy.Operation.Equals("CompareLess") || schemaCopy.Operation.Equals("CompareEqual"))
                 {
@@ -212,16 +215,29 @@ public static class Worker
                     var commandsToBeExecutedBasedOnResult = result 
                         ? schemaCopy.RightChildren : schemaCopy.LeftChildren;
 
-                    commonDelegate = commandsToBeExecutedBasedOnResult!
-                        .Aggregate(commonDelegate, (current, commandToBeExecutedBasedOnResult) 
-                            => current + (_ => Operations.GetOperationByName(commandToBeExecutedBasedOnResult.Operation)));   
+                    operationsToBeExecuted.AddRange(commandsToBeExecutedBasedOnResult!
+                        .Select(x => x.Operation));
+
+                    // commonDelegate = commandsToBeExecutedBasedOnResult!
+                    //     .Aggregate(commonDelegate, (current, commandToBeExecutedBasedOnResult) 
+                    //         => current + (_ => Operations.GetOperationByName(commandToBeExecutedBasedOnResult.Operation)));   
                 }
                 schemaCopy = schemaCopy.Next;
             }
-            ThreadPool.QueueUserWorkItem(commonDelegate);   
+            var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
+            
+            foreach (var task in tasks)
+            {
+                task.RunSynchronously();
+            }
+            // var newThread = new Thread(() =>
+            // {
+            //     operationsToBeExecuted.ForEach(x => Task.Run(Operations.GetOperationByName(x)));
+            // });
+            // threads.Add(newThread);
+            // newThread.Start();
+            //ThreadPool.QueueUserWorkItem(commonDelegate);   
         }
-
-        return Task.CompletedTask; //.WaitAsync(new CancellationToken());
     }
 
     public static void ShowSchemas()

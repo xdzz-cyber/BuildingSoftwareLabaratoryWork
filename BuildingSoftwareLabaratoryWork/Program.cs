@@ -19,7 +19,7 @@ while (response != "6")
     {
         case "1":
             Console.WriteLine($"You can add up to 100 commands in single schema. Commands available are: " +
-                              $"{string.Join(", ", Operations.operations.Select(c => $"{c.Key} - {c.Value}"))}");
+                              $"{string.Join(", ", Operations.operations.Select(c => $"{c.Key}"))}");
             
             //tasks.Append(Task.Run(CreateSchema));
             //Schema.CreateSchema().GetAwaiter().GetResult();

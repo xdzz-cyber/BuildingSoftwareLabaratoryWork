@@ -8,7 +8,7 @@ namespace BuildingSoftwareLabaratoryWork;
 public static class Operations
 {
 
-    public static readonly Dictionary<string, Action> operations;
+    public static readonly Dictionary<string, Action?> operations;
         // new() 
         // {{"Assign",() => {}}, {"CompareLess",2}, {"CompareEqual",3} , {"ReadNStore",4}, {"PrintValue",5}, {"ShowState",6}, 
         //     {"ShowConstants"} };
@@ -21,7 +21,7 @@ public static class Operations
             "ShowState", "ShowConstants"
         };
         
-        operations = new Dictionary<string, Action>();
+        operations = new Dictionary<string, Action?>();
 
         foreach (var operationName in operationsName)
         {
@@ -44,8 +44,10 @@ public static class Operations
                     });
                     break;
                 case "CompareLess":
+                    operations.Add(operationName, null);
                     break;
                 case "CompareEqual":
+                    operations.Add(operationName, null);
                     break;
                 case "ReadNStore":
                     operations.Add(operationName, () =>
@@ -71,7 +73,7 @@ public static class Operations
         }
     }
 
-    public static Action GetOperationByName(string operationName)
+    public static Action? GetOperationByName(string operationName)
     {
         return operations[operationName];
     }
@@ -88,7 +90,7 @@ public static class Operations
 
         return new ReadDataViewModel
         {
-            Name = $"{Guid.NewGuid().ToString()}-{DateTime.Now}",
+            Name = $"{Guid.NewGuid().ToString()}{new Random().Next(1, 10000)}",
             Value = Int32.Parse(value ?? throw new InvalidOperationException())
         };
     }

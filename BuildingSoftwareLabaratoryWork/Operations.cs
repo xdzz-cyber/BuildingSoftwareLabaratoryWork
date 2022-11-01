@@ -75,15 +75,21 @@ public static class Operations
 
     public static Action? GetOperationByName(string operationName)
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         return operations[operationName];
     }
     public static  int Compare(string variableName, string constantName)
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         return State.state[variableName].CompareTo(State.state[constantName]);
     }
     
     private static ReadDataViewModel ReadToAssign()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         Console.WriteLine("Please, enter value");
 
         var value = Console.ReadLine();
@@ -97,6 +103,8 @@ public static class Operations
 
     private static AssignOneVariableValueToOtherViewModel ReadOneVariableValueToAssignForOther()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         Console.WriteLine("Please, enter V1 and V2 names with comma as separator");
 
         var values = Console.ReadLine()?.Split(",");
@@ -110,6 +118,8 @@ public static class Operations
 
     private static AssignConstantToVariableViewModel ReadConstantToAssignToVariable()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         Console.WriteLine("Please, enter constant name C, and variable name V");
 
         var values = Console.ReadLine()?.Split(",");
@@ -123,6 +133,8 @@ public static class Operations
 
     private static ReadValueToPrintViewModel ReadValueToPrint()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         Console.WriteLine("Please, enter variable name, V");
 
         var value = Console.ReadLine();
@@ -135,6 +147,8 @@ public static class Operations
 
     private static void ShowConstants()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         var response = new StringBuilder();
 
         foreach (var item in Constants.constants)
@@ -147,6 +161,8 @@ public static class Operations
 
     private static void ShowState()
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         var response = new StringBuilder();
 
         foreach (var item in State.state)
@@ -159,16 +175,24 @@ public static class Operations
     
     private static void AssignOneVariableValueToOther(string v1, string v2, ConcurrentDictionary<string,int> state)
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         state[v1] = state[v2];
     }
 
     private static void AssignConstantValueToOther(string v, string c, 
         ConcurrentDictionary<string,int> state, Dictionary<string, int> constants)
     {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
         state[v] = constants[c];
     }
 
-    private static  void Print(string variableName, ConcurrentDictionary<string, int> state) 
-        => Console.WriteLine($"{variableName} has value {state[variableName]}");
-    
+    private static void Print(string variableName, ConcurrentDictionary<string, int> state)
+    {
+        Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
+        
+        Console.WriteLine($"{variableName} has value {state[variableName]}");
+    }
+
 }

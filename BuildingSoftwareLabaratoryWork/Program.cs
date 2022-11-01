@@ -6,7 +6,7 @@ using BuildingSoftwareLabaratoryWork.Common;
 var state = new ConcurrentDictionary<string, int>();
 
 Console.WriteLine("1 - create new schema\n2 - show schemas" +
-                  "\n3 - modify schema by id\n4 - execute schema by id\n5 - test schema by id\n6 - exit");
+                  "\n3 - modify schema by id\n4 - execute schemas by id\n5 - test schema by id\n6 - exit");
 
 var response = Console.ReadLine();
 Worker.Init(Operations.operations, state , MongoDbInformation.GetClient());
@@ -40,7 +40,7 @@ while (response != "6")
     }
     
     Console.WriteLine("1 - create new schema\n2 - show schemas" +
-                      "\n3 - modify schema by id\n4 - execute schema by id\n5 - test schema by id\n6 - exit");
+                      "\n3 - modify schema by id\n4 - execute schemas by id\n5 - test schema by id\n6 - exit");
     
     Console.WriteLine("Enter new command");
 

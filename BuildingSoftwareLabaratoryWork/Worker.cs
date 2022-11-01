@@ -182,7 +182,7 @@ public static class Worker
         var schemasCollection = GetSchemas()
             .AsQueryable().ToList();
 
-        //var threads = new List<Thread>();
+        var threads = new List<Thread>();
         
         foreach (var schema in schemasCollection.Where(schema => schemasIds.Contains(schema.Id.ToString())))
         {
@@ -224,20 +224,23 @@ public static class Worker
                 }
                 schemaCopy = schemaCopy.Next;
             }
-            var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
-            
-            foreach (var task in tasks)
-            {
-                task.RunSynchronously();
-            }
-            // var newThread = new Thread(() =>
+            // var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
+            //
+            // foreach (var task in tasks)
             // {
-            //     operationsToBeExecuted.ForEach(x => Task.Run(Operations.GetOperationByName(x)));
-            // });
-            // threads.Add(newThread);
+            //     task.RunSynchronously();
+            // }
+            
+            var newThread = new Thread(() =>
+            {
+                operationsToBeExecuted.ForEach(x => Operations.GetOperationByName(x).Invoke());
+            });
+            threads.Add(newThread);
             // newThread.Start();
             //ThreadPool.QueueUserWorkItem(commonDelegate);   
         }
+        
+        threads.ForEach(t => t.Start());
     }
 
     public static void ShowSchemas()

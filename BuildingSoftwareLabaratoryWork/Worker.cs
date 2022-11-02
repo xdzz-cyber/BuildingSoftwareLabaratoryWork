@@ -184,20 +184,22 @@ public static class Worker
 
         var threads = new List<Thread>();
         
-        foreach (var schema in schemasCollection.Where(schema => schemasIds.Contains(schema.Id.ToString())))
+        BlockingCollection<Action> actions = new BlockingCollection<Action>();
+        
+        foreach (var schemaId in schemasIds)
         {
             //WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
             //var commonDelegate = new Action<object>(_ => Console.Beep());
-            var schemaCopy = schema;
+            var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
             
-            var operationsToBeExecuted = new List<string> {schemaCopy.Operation};
+            var operationsToBeExecuted = new List<string> {schema!.Operation};
             
-            while (schemaCopy.Next is not null)
+            while (schema is not null)
             {
-                operationsToBeExecuted.Add(schemaCopy.Next.Operation);
+                operationsToBeExecuted.Add(schema.Operation);
                 //commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
 
-                if (schemaCopy.Operation.Equals("CompareLess") || schemaCopy.Operation.Equals("CompareEqual"))
+                if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
                  
                     Console.WriteLine("Please, enter value name to compare with comma as separator");
@@ -213,7 +215,7 @@ public static class Worker
                         : Operations.Compare(variableName!, constantName!) == 0;
 
                     var commandsToBeExecutedBasedOnResult = result 
-                        ? schemaCopy.RightChildren : schemaCopy.LeftChildren;
+                        ? schema.RightChildren : schema.LeftChildren;
 
                     operationsToBeExecuted.AddRange(commandsToBeExecutedBasedOnResult!
                         .Select(x => x.Operation));
@@ -222,7 +224,12 @@ public static class Worker
                     //     .Aggregate(commonDelegate, (current, commandToBeExecutedBasedOnResult) 
                     //         => current + (_ => Operations.GetOperationByName(commandToBeExecutedBasedOnResult.Operation)));   
                 }
-                schemaCopy = schemaCopy.Next;
+
+                if (schema.Next is null)
+                {
+                    break;
+                }
+                schema = schema.Next;
             }
             // var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
             //
@@ -231,16 +238,29 @@ public static class Worker
             //     task.RunSynchronously();
             // }
             
-            var newThread = new Thread(() =>
-            {
-                operationsToBeExecuted.ForEach(x => Operations.GetOperationByName(x).Invoke());
-            });
-            threads.Add(newThread);
+            // var newThread = new Thread(() =>
+            // {
+            //     //operationsToBeExecuted.ForEach(x => Operations.GetOperationByName(x).DynamicInvoke());
+            // });
+            // threads.Add(newThread);
+            operationsToBeExecuted.ForEach(x => actions.Add(Operations.GetOperationByName(x)!));
             // newThread.Start();
             //ThreadPool.QueueUserWorkItem(commonDelegate);   
+            // Task.WaitAll(operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!))
+            //     .ToArray());
+            //operationsToBeExecuted.ForEach(op => Operations.GetOperationByName(op));
         }
-        
-        threads.ForEach(t => t.Start());
+
+        foreach (var action in actions)
+        {
+            action.DynamicInvoke();
+        }
+        // while (actions.Count != 0)
+        // {
+        //     var action = actions.Take();
+        //     action();
+        // }
+        //threads.ForEach(t => t.Start());
     }
 
     public static void ShowSchemas()

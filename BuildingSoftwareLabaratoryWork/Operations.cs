@@ -64,10 +64,10 @@ public static class Operations
                     });
                     break;
                 case "ShowState":
-                    operations.Add(operationName, ShowState);
+                    operations.Add(operationName, () => ShowState());
                     break;
                 case "ShowConstants":
-                    operations.Add(operationName, ShowConstants);
+                    operations.Add(operationName, () => ShowConstants());
                     break;
             }
         }

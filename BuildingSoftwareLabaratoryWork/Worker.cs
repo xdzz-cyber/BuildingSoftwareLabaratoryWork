@@ -173,7 +173,7 @@ public static class Worker
         Console.WriteLine("All went good while updating");
     }
 
-    public static void ExecuteSchemasByIds()
+    public static async Task ExecuteSchemasByIds()
     {
         Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
@@ -182,9 +182,12 @@ public static class Worker
         var schemasCollection = GetSchemas()
             .AsQueryable().ToList();
 
-        var threads = new List<Thread>();
+        var threads = new List<List<Thread>>();
         
-        BlockingCollection<Action> actions = new BlockingCollection<Action>();
+        //var actions = new BlockingCollection<Action>();
+        
+        
+        var tasks = new List<List<Task>>();
         
         foreach (var schemaId in schemasIds)
         {
@@ -192,38 +195,46 @@ public static class Worker
             //var commonDelegate = new Action<object>(_ => Console.Beep());
             var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
             
-            var operationsToBeExecuted = new List<string> {schema!.Operation};
+            var operationsToBeExecuted = new List<string>{};
             
             while (schema is not null)
             {
-                operationsToBeExecuted.Add(schema.Operation);
-                //commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
-
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
-                 
-                    Console.WriteLine("Please, enter value name to compare with comma as separator");
-
-                    var variableName = Console.ReadLine();
-                
-                    Console.WriteLine("Please, enter constant name to compare with comma as separator");
-
-                    var constantName = Console.ReadLine();
-
-                    var result = schema.Operation.Equals("CompareLess")
-                        ? Operations.Compare(variableName!, constantName!) == -1
-                        : Operations.Compare(variableName!, constantName!) == 0;
-
-                    var commandsToBeExecutedBasedOnResult = result 
-                        ? schema.RightChildren : schema.LeftChildren;
-
-                    operationsToBeExecuted.AddRange(commandsToBeExecutedBasedOnResult!
-                        .Select(x => x.Operation));
-
-                    // commonDelegate = commandsToBeExecutedBasedOnResult!
-                    //     .Aggregate(commonDelegate, (current, commandToBeExecutedBasedOnResult) 
-                    //         => current + (_ => Operations.GetOperationByName(commandToBeExecutedBasedOnResult.Operation)));   
+                    var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema!)
+                        ? schema!.RightChildren!.Select(y => y.Operation)
+                        : schema!.LeftChildren!.Select(y => y.Operation);
+                    
+                    operationsToBeExecuted.AddRange(newOperationsBasedOnResult);
                 }
+                else
+                {
+                    operationsToBeExecuted.Add(schema.Operation);
+                }
+                //commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
+
+                // if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
+                // {
+                //  
+                //     Console.WriteLine($"Please, enter value name to compare " +
+                //                       $"{(schema.Operation.Equals("CompareLess") ? "if less" : "if equals")} with comma as separator");
+                //
+                //     var variableName = Console.ReadLine();
+                //
+                //     Console.WriteLine("Please, enter constant name to compare with comma as separator");
+                //
+                //     var constantName = Console.ReadLine();
+                //
+                //     var result = schema.Operation.Equals("CompareLess")
+                //         ? Operations.Compare(variableName!, constantName!) == -1
+                //         : Operations.Compare(variableName!, constantName!) == 0;
+                //
+                //     var commandsToBeExecutedBasedOnResult = result 
+                //         ? schema.RightChildren : schema.LeftChildren;
+                //
+                //     operationsToBeExecuted.AddRange(commandsToBeExecutedBasedOnResult!
+                //         .Select(x => x.Operation));
+                // }
 
                 if (schema.Next is null)
                 {
@@ -231,36 +242,83 @@ public static class Worker
                 }
                 schema = schema.Next;
             }
+            threads.Add(operationsToBeExecuted.Select(x 
+                => new Thread(new ThreadStart(Operations.GetOperationByName(x)!))).ToList());
             // var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
             //
             // foreach (var task in tasks)
             // {
             //     task.RunSynchronously();
             // }
+            // operationsToBeExecuted.ForEach(x =>
+            // {
+            // });
             
+            // var newThread = new Thread(async () =>
+            // {
+            //     
+            // });
+            //
+            // threads.Add(newThread);
+
             // var newThread = new Thread(() =>
             // {
-            //     //operationsToBeExecuted.ForEach(x => Operations.GetOperationByName(x).DynamicInvoke());
+            //     operationsToBeExecuted.ForEach(x =>
+            //     {
+            //         Operations.GetOperationByName(x)!.Invoke();
+            //     });
             // });
-            // threads.Add(newThread);
-            operationsToBeExecuted.ForEach(x => actions.Add(Operations.GetOperationByName(x)!));
+            // operationsToBeExecuted.ForEach(x =>
+            // {
+            //     if (x.Equals("CompareLess") || x.Equals("CompareEqual"))
+            //     {
+            //         var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema!)
+            //             ? schema!.RightChildren!.Select(y => y.Operation)
+            //             : schema!.LeftChildren!.Select(y => y.Operation);
+            //
+            //         foreach (var newOperationBasedOnResult in newOperationsBasedOnResult)
+            //         {
+            //             //actions.Add(Operations.GetOperationByName(newOperationBasedOnResult)!);
+            //         }
+            //     }
+            // });
             // newThread.Start();
             //ThreadPool.QueueUserWorkItem(commonDelegate);   
             // Task.WaitAll(operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!))
             //     .ToArray());
             //operationsToBeExecuted.ForEach(op => Operations.GetOperationByName(op));
+            //threads.Add(newThread);
         }
 
-        foreach (var action in actions)
+        //var startIndex = 0;
+
+        for (var i = 0; i < threads.MaxBy(t => t.Count)!.Count; i++)
         {
-            action.DynamicInvoke();
+           threads.ForEach(t =>
+           {
+               if (i < t.Count)
+               {
+                   t[i].Start();
+                   t[i].Join();
+               }
+           });
         }
+        
+        // foreach (var action in actions)
+        // {
+        //     action?.DynamicInvoke();
+        // }
         // while (actions.Count != 0)
         // {
         //     var action = actions.Take();
         //     action();
         // }
-        //threads.ForEach(t => t.Start());
+        
+        // threads.ForEach(t =>
+        // {
+        //     t.Start();
+        //     t.Join();
+        // });
     }
 
     public static void ShowSchemas()

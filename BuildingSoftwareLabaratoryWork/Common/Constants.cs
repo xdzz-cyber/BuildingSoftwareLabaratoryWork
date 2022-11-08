@@ -2,9 +2,10 @@
 
 internal static class Constants
 {
-    internal static readonly Dictionary<string, int> constants = new()
+    internal static readonly Dictionary<string, int> constants = new();
+
+    static Constants()
     {
-        {"fConst", 1011},
-        {"sConst",125}
-    };
+        constants.Add("fConst",15);
+    }
 }

@@ -56,25 +56,50 @@ public static class Operations
     private static void Action1()
     {
         var readData = ReadValueToPrint();
+        
+        // Console.WriteLine("Please, enter variable name, V");
+
+        //var value = Console.ReadLine();
         Print(readData.V, State.state);
+        //Console.WriteLine($"{value} has value {State.state[value!]}");
     }
 
     private static void Value1()
     {
         var readData = ReadOneVariableValueToAssignForOther();
+        
+        //Console.WriteLine("Please, enter V1 and V2 names with comma as separator");
+
+        //var values = Console.ReadLine();
+
+        //var response = values?.Split(",");
+        
+        //State.state[response![0]] = State.state[response[1]];
         AssignOneVariableValueToOther(readData.V1, readData.V2, State.state);
     }
 
     private static void Action()
     {
         var readData = ReadConstantToAssignToVariable();
+        
+        //Console.WriteLine("Please, enter constant name C, and variable name V");
+
+        //var values = Console.ReadLine();
+
+        //var response = values?.Split(",");
+
         AssignConstantValueToOther(readData.V, readData.C, State.state, Constants.constants);
+        //State.state[response![1]] = Constants.constants[response[0]];
     }
 
     private static void Value()
     {
         var readData = ReadToAssign();
         State.state[readData.Name] = readData.Value;
+        //Console.WriteLine("Please, enter value");
+
+        //var value = Console.ReadLine();
+        //State.state[$"{Guid.NewGuid().ToString()}{new Random().Next(1, 10000)}"] = int.Parse(value!);
     }
 
     public static bool GetResultOfCompareOperation(SchemaModel schema)

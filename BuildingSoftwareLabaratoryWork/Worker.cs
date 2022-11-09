@@ -12,7 +12,8 @@ public static class Worker
     private static MongoClient _mongoClient;
     private static ConcurrentDictionary<string, int> _state;
 
-    public static void Init(Dictionary<string, Action> commands, ConcurrentDictionary<string, int> state,MongoClient mongoClient)
+    public static void Init(Dictionary<string, Action> commands, ConcurrentDictionary<string, int> state,
+        MongoClient mongoClient)
     {
         _commands = commands;
         _state = state;
@@ -53,17 +54,16 @@ public static class Worker
                 LeftChildren = null,
                 RightChildren = null
             };
-            
+
             root.RightChildren = root.RightChildren is null
                 ? new List<SchemaModel>
                 {
                     newRoot
-                } : root.RightChildren.Concat(new []{newRoot}).ToList();
-            
+                }
+                : root.RightChildren.Concat(new[] {newRoot}).ToList();
+
             if (commandIfTrue.Equals("CompareLess") || commandIfTrue.Equals("CompareEqual"))
-            {
                 InsertNodeChildren(newRoot);
-            }
         }
 
         foreach (var commandIfFalse in commandsIfConditionExists.Item1)
@@ -76,24 +76,23 @@ public static class Worker
                 LeftChildren = null,
                 RightChildren = null
             };
-                
+
             root.LeftChildren = root.LeftChildren is null
                 ? new List<SchemaModel>
                 {
                     newRoot
-                } : root.LeftChildren.Concat(new []{newRoot}).ToList();
-            
+                }
+                : root.LeftChildren.Concat(new[] {newRoot}).ToList();
+
             if (commandIfFalse.Equals("CompareLess") || commandIfFalse.Equals("CompareEqual"))
-            {
                 InsertNodeChildren(newRoot);
-            }
         }
     }
 
     public static async Task CreateSchema()
     {
         var schemasCollectionObject = GetSchemas();
-        
+
         Console.WriteLine("Write up commands with comma as separator");
 
         var chosenCommands = Console.ReadLine()!.Split(",");
@@ -115,15 +114,10 @@ public static class Worker
             };
 
             if (chosenCommands[i].Equals("CompareLess") || chosenCommands[i].Equals("CompareEqual"))
-            {
                 InsertNodeChildren(newSchemaObject);
-            }
-            
-            if (i > 0)
-            {
-                newSchemasObject[i - 1].Next = newSchemaObject;
-            }
-            
+
+            if (i > 0) newSchemasObject[i - 1].Next = newSchemaObject;
+
             newSchemasObject.Add(newSchemaObject);
         }
 
@@ -136,7 +130,7 @@ public static class Worker
     public static async Task ModifySchema()
     {
         var schemasCollectionObject = GetSchemas();
-        
+
         Console.WriteLine("Write up id of the schema");
 
         var schemaId = Console.ReadLine()!;
@@ -149,11 +143,11 @@ public static class Worker
             Console.WriteLine("Bad schema id given");
             return;
         }
-        
+
         Console.WriteLine("Please, entry new command");
 
         var newCommand = Console.ReadLine();
-        
+
         var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.Id);
 
         var matchedCommandOperationName =
@@ -162,11 +156,8 @@ public static class Worker
         foundSchema.LeftChildren = foundSchema.RightChildren = null;
 
         foundSchema.Operation = matchedCommandOperationName;
-        
-        if (newCommand!.Equals("CompareLess") || newCommand.Equals("CompareEqual"))
-        {
-            InsertNodeChildren(foundSchema);
-        }
+
+        if (newCommand!.Equals("CompareLess") || newCommand.Equals("CompareEqual")) InsertNodeChildren(foundSchema);
 
         await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema);
 
@@ -178,25 +169,25 @@ public static class Worker
         Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
         var schemasIds = Console.ReadLine()!.Split(",");
-        
+
         var schemasCollection = GetSchemas()
             .AsQueryable().ToList();
 
-        var threads = new List<List<Thread>>();
-        
+        var threads = new List<Thread>();
+
         //var actions = new BlockingCollection<Action>();
-        
-        
+
+
         var tasks = new List<List<Task>>();
-        
+        var operations = new List<Action>();
         foreach (var schemaId in schemasIds)
         {
             //WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
             //var commonDelegate = new Action<object>(_ => Console.Beep());
             var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
-            
-            var operationsToBeExecuted = new List<string>{};
-            
+
+            var operationsToBeExecuted = new List<string> { };
+
             while (schema is not null)
             {
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
@@ -204,7 +195,7 @@ public static class Worker
                     var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema!)
                         ? schema!.RightChildren!.Select(y => y.Operation)
                         : schema!.LeftChildren!.Select(y => y.Operation);
-                    
+
                     operationsToBeExecuted.AddRange(newOperationsBasedOnResult);
                 }
                 else
@@ -236,14 +227,23 @@ public static class Worker
                 //         .Select(x => x.Operation));
                 // }
 
-                if (schema.Next is null)
-                {
-                    break;
-                }
+                if (schema.Next is null) break;
                 schema = schema.Next;
             }
-            threads.Add(operationsToBeExecuted.Select(x 
-                => new Thread(new ThreadStart(Operations.GetOperationByName(x)!))).ToList());
+            operations.AddRange(operationsToBeExecuted.Select(Operations.GetOperationByName).ToArray()!);
+            // threads.Add(operationsToBeExecuted.Select(x 
+            //     => new Thread(new ThreadStart(Operations.GetOperationByName(x)!))).ToList());
+
+            // threads.Add(new Thread(() =>
+            // {
+            //
+            //     operationsToBeExecuted.ForEach(o =>
+            //     {
+            //         Thread.Sleep(100);
+            //     });
+            // }));
+            // tasks.Add(operationsToBeExecuted
+            //     .Select(x => new Task(Operations.GetOperationByName(x)!)).ToList());
             // var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
             //
             // foreach (var task in tasks)
@@ -253,7 +253,7 @@ public static class Worker
             // operationsToBeExecuted.ForEach(x =>
             // {
             // });
-            
+
             // var newThread = new Thread(async () =>
             // {
             //     
@@ -289,21 +289,32 @@ public static class Worker
             //operationsToBeExecuted.ForEach(op => Operations.GetOperationByName(op));
             //threads.Add(newThread);
         }
-
-        //var startIndex = 0;
-
-        for (var i = 0; i < threads.MaxBy(t => t.Count)!.Count; i++)
-        {
-           threads.ForEach(t =>
-           {
-               if (i < t.Count)
-               {
-                   t[i].Start();
-                   t[i].Join();
-               }
-           });
-        }
         
+        Parallel.Invoke(operations.ToArray());
+        //threads.ForEach(thread => thread.Start());
+        // Parallel.ForEach(tasks, task =>
+        // {
+        //     task[startIndex].RunSynchronously();
+        //     startIndex += 1;
+        // });
+
+        // foreach (var thread in threads)
+        // {
+        //     thread.Start();
+        // }
+
+        // for (var i = 0; i < threads.MaxBy(t => t.Count)!.Count; i++)
+        // {
+        //    threads.ForEach(t =>
+        //    {
+        //        if (i < t.Count)
+        //        {
+        //            t[i].Start();
+        //            t[i].Join();
+        //        }
+        //    });
+        // }
+
         // foreach (var action in actions)
         // {
         //     action?.DynamicInvoke();
@@ -313,7 +324,7 @@ public static class Worker
         //     var action = actions.Take();
         //     action();
         // }
-        
+
         // threads.ForEach(t =>
         // {
         //     t.Start();
@@ -332,16 +343,14 @@ public static class Worker
         foreach (var schema in schemas)
         {
             response.Append($"\n{schema.Id}-{schema.Operation}");
-            
+
             if (schema.LeftChildren is not null || schema.RightChildren is not null)
-            {
                 GetAllChildrenInfo(schema, response); //schemas
-            }
 
             while (schema.Next is not null)
             {
                 response.Append($"--> Next = {schema.Id}-{schema.Next.Operation}");
-                
+
                 GetAllChildrenInfo(schema.Next, response);
 
                 schema.Next = schema.Next.Next;
@@ -349,7 +358,7 @@ public static class Worker
         }
 
         var tmp = response.ToString();
-        
+
         Console.WriteLine(tmp);
     }
 
@@ -358,11 +367,8 @@ public static class Worker
         if (root.LeftChildren is not null)
         {
             allLines.Append("\tLeftChildren:");
-                    
-            foreach (var leftChild in root.LeftChildren)
-            {
-                allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");    
-            }
+
+            foreach (var leftChild in root.LeftChildren) allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");
 
             GetAllChildrenInfo(root.LeftChildren.First(), allLines);
         }
@@ -370,14 +376,11 @@ public static class Worker
         if (root.RightChildren is not null)
         {
             allLines.Append("\tRightChildren:");
-                
+
             foreach (var rightChild in root.RightChildren)
-            {
-                allLines.Append($"{rightChild.Id}-{rightChild.Operation}-->");    
-            }
+                allLines.Append($"{rightChild.Id}-{rightChild.Operation}-->");
 
             GetAllChildrenInfo(root.RightChildren.First(), allLines);
         }
-
     }
 }

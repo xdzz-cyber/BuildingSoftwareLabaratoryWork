@@ -61,6 +61,7 @@ public static class Operations
 
         //var value = Console.ReadLine();
         Print(readData.V, State.state);
+        Thread.Sleep(100);
         //Console.WriteLine($"{value} has value {State.state[value!]}");
     }
 
@@ -76,6 +77,7 @@ public static class Operations
         
         //State.state[response![0]] = State.state[response[1]];
         AssignOneVariableValueToOther(readData.V1, readData.V2, State.state);
+        Thread.Sleep(100);
     }
 
     private static void Action()
@@ -89,6 +91,7 @@ public static class Operations
         //var response = values?.Split(",");
 
         AssignConstantValueToOther(readData.V, readData.C, State.state, Constants.constants);
+        Thread.Sleep(100);
         //State.state[response![1]] = Constants.constants[response[0]];
     }
 
@@ -96,6 +99,7 @@ public static class Operations
     {
         var readData = ReadToAssign();
         State.state[readData.Name] = readData.Value;
+        Thread.Sleep(100);
         //Console.WriteLine("Please, enter value");
 
         //var value = Console.ReadLine();
@@ -105,11 +109,11 @@ public static class Operations
     public static bool GetResultOfCompareOperation(SchemaModel schema)
     {
         Console.WriteLine($"Please, enter value name to compare " +
-                          $"{(schema.Operation.Equals("CompareLess") ? "if less" : "if equals")} with comma as separator");
+                          $"{(schema.Operation.Equals("CompareLess") ? "if less" : "if equals")}");
 
         var variableName = Console.ReadLine();
 
-        Console.WriteLine("Please, enter constant name to compare with comma as separator");
+        Console.WriteLine("Please, enter constant name to compare");
 
         var constantName = Console.ReadLine();
 
@@ -204,6 +208,8 @@ public static class Operations
         foreach (var item in Constants.constants) response.AppendLine($"{item.Key} = {item.Value}");
 
         Console.WriteLine(response.ToString());
+        
+        Thread.Sleep(100);
     }
 
     private static void ShowState()
@@ -215,6 +221,8 @@ public static class Operations
         foreach (var item in State.state) response.AppendLine($"{item.Key} = {item.Value}");
 
         Console.WriteLine(response.ToString());
+        
+        Thread.Sleep(100);
     }
 
     private static void AssignOneVariableValueToOther(string v1, string v2, ConcurrentDictionary<string, int> state)
@@ -237,5 +245,7 @@ public static class Operations
         //Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
 
         Console.WriteLine($"{variableName} has value {state[variableName]}");
+        
+        Thread.Sleep(100);
     }
 }

@@ -55,18 +55,20 @@ public static class Operations
 
     private static void Action1()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         var readData = ReadValueToPrint();
         
         // Console.WriteLine("Please, enter variable name, V");
 
         //var value = Console.ReadLine();
         Print(readData.V, State.state);
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
         //Console.WriteLine($"{value} has value {State.state[value!]}");
     }
 
     private static void Value1()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         var readData = ReadOneVariableValueToAssignForOther();
         
         //Console.WriteLine("Please, enter V1 and V2 names with comma as separator");
@@ -77,11 +79,12 @@ public static class Operations
         
         //State.state[response![0]] = State.state[response[1]];
         AssignOneVariableValueToOther(readData.V1, readData.V2, State.state);
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
     }
 
     private static void Action()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         var readData = ReadConstantToAssignToVariable();
         
         //Console.WriteLine("Please, enter constant name C, and variable name V");
@@ -91,35 +94,37 @@ public static class Operations
         //var response = values?.Split(",");
 
         AssignConstantValueToOther(readData.V, readData.C, State.state, Constants.constants);
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
         //State.state[response![1]] = Constants.constants[response[0]];
     }
 
     private static void Value()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         var readData = ReadToAssign();
         State.state[readData.Name] = readData.Value;
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
         //Console.WriteLine("Please, enter value");
 
         //var value = Console.ReadLine();
         //State.state[$"{Guid.NewGuid().ToString()}{new Random().Next(1, 10000)}"] = int.Parse(value!);
     }
 
-    public static bool GetResultOfCompareOperation(SchemaModel schema)
+    public static bool GetResultOfCompareOperation(string operationName)
     {
         Console.WriteLine($"Please, enter value name to compare " +
-                          $"{(schema.Operation.Equals("CompareLess") ? "if less" : "if equals")}");
+                          $"{(operationName.Equals("CompareLess") ? "if less" : "if equals")} and constant name with" +
+                          $" comma as separator");
+        var values = Console.ReadLine()!.Split(",");
+        // var variableName = Console.ReadLine();
+        //
+        // Console.WriteLine("Please, enter constant name to compare");
+        //
+        // var constantName = Console.ReadLine();
 
-        var variableName = Console.ReadLine();
-
-        Console.WriteLine("Please, enter constant name to compare");
-
-        var constantName = Console.ReadLine();
-
-        return schema.Operation.Equals("CompareLess")
-            ? Compare(variableName!, constantName!) == -1
-            : Compare(variableName!, constantName!) == 0;
+        return operationName.Equals("CompareLess")
+            ? Compare(values[0], values[1]) == -1
+            : Compare(values[0], values[1]) == 0;
     }
 
     public static Action? GetOperationByName(string operationName)
@@ -201,6 +206,7 @@ public static class Operations
 
     private static void ShowConstants()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         //Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
 
         var response = new StringBuilder();
@@ -209,11 +215,12 @@ public static class Operations
 
         Console.WriteLine(response.ToString());
         
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
     }
 
     private static void ShowState()
     {
+        Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         //Console.WriteLine($"Current thread id = {Environment.CurrentManagedThreadId}");
 
         var response = new StringBuilder();
@@ -222,7 +229,7 @@ public static class Operations
 
         Console.WriteLine(response.ToString());
         
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
     }
 
     private static void AssignOneVariableValueToOther(string v1, string v2, ConcurrentDictionary<string, int> state)
@@ -246,6 +253,6 @@ public static class Operations
 
         Console.WriteLine($"{variableName} has value {state[variableName]}");
         
-        Thread.Sleep(100);
+        // Thread.Sleep(100);
     }
 }

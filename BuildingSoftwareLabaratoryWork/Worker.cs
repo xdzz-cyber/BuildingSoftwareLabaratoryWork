@@ -48,13 +48,7 @@ public static class Worker
         foreach (var commandIfTrue in commandsIfConditionExists.Item2)
         {
             var newObjectId = ObjectId.GenerateNewId();
-            
-            while (GetSchemas().AsQueryable().ToList().FirstOrDefault(x => x.Id == newObjectId) 
-                   is not null)
-            {
-                newObjectId = ObjectId.GenerateNewId();
-            }
-            
+
             var newRoot = new SchemaModel
             {
                 Id = newObjectId,
@@ -78,13 +72,7 @@ public static class Worker
         foreach (var commandIfFalse in commandsIfConditionExists.Item1)
         {
             var newObjectId = ObjectId.GenerateNewId();
-            
-            while (GetSchemas().AsQueryable().ToList().FirstOrDefault(x => x.Id == newObjectId) 
-                   is not null)
-            {
-                newObjectId = ObjectId.GenerateNewId();
-            }
-            
+
             var newRoot = new SchemaModel
             {
                 Id = newObjectId,
@@ -123,12 +111,6 @@ public static class Worker
 
             var newObjectId = ObjectId.GenerateNewId();
 
-            while (schemasCollectionObject.AsQueryable().ToList().FirstOrDefault(x => x.Id == newObjectId) 
-                   is not null)
-            {
-                newObjectId = ObjectId.GenerateNewId();
-            }
-            
             var newSchemaObject = new SchemaModel
             {
                 Id = newObjectId,
@@ -321,7 +303,36 @@ public static class Worker
         
         //Parallel.Invoke(operations.ToArray()); // TODO: 1) gotta process compare operations to not get exceptions
         //SchemaModel? currentPrevSchema = null;
-        RunSchemaOperations(schemasToBeExecuted);
+
+        // foreach (var schema in schemasToBeExecuted)
+        // {
+        //     ThreadPool.QueueUserWorkItem(state =>
+        //     {
+        //         var schemaCopy = schema;
+        //         while (true)
+        //         {
+        //             var schemaNext = schemaCopy!.Next;
+        //             if (schemaCopy.Operation.Equals("CompareLess") || schemaCopy.Operation.Equals("CompareEqual"))
+        //             {
+        //                 var newOperationsBasedOnResult = Operations
+        //                     .GetResultOfCompareOperation(schemaCopy.Operation)
+        //                     ? schemaCopy.RightChildren
+        //                     : schemaCopy.LeftChildren;
+        //                 newOperationsBasedOnResult![^1].Next = schemaNext; //!.Add(schemaNext!);
+        //                 schemaNext = newOperationsBasedOnResult.First();
+        //             }
+        //             else
+        //             {
+        //                 Operations.GetOperationByName(schemaCopy.Operation)!.Invoke();
+        //                 Thread.Sleep(100);
+        //             }  
+        //             if (schemaNext is null) break;
+        //             schemaCopy = schemaNext;
+        //         }
+        //     });
+        // }
+        
+        RunSchemaOperations(schemasToBeExecuted!);
 
         //threads.ForEach(thread => thread.Start());
         // Parallel.ForEach(tasks, task =>
@@ -404,11 +415,13 @@ public static class Worker
                 var schemaNext = schema.Next;
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
-                    //var result = Operations.GetResultOfCompareOperation(operation);
                     var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema.Operation)
                         ? schema.RightChildren
                         : schema.LeftChildren;
+                    
                     newOperationsBasedOnResult![^1].Next = schemaNext; //!.Add(schemaNext!);
+                    newOperationsBasedOnResult.First().Next = newOperationsBasedOnResult.Count > 1 ? 
+                            newOperationsBasedOnResult[1] : null;
                     schemaNext = newOperationsBasedOnResult.First();
                 }
                 else

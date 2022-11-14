@@ -11,6 +11,7 @@ public static class Worker
     private static Dictionary<string, Action> _commands;
     private static MongoClient _mongoClient;
     private static ConcurrentDictionary<string, int> _state;
+    private static readonly object ConsoleWriterLock = new object();
 
     public static void Init(Dictionary<string, Action?> commands, ConcurrentDictionary<string, int> state,
         MongoClient mongoClient)
@@ -134,6 +135,65 @@ public static class Worker
         Console.WriteLine("All went good");
     }
 
+    private static (SchemaModel? parent, SchemaModel? child) FindSchemaAndItsParent(string schemaId, 
+        List<SchemaModel> whereToFind, SchemaModel? parent = null)
+    {
+
+        foreach (var schema in whereToFind)
+        {
+            var baseParent = schema;
+            
+            if (schema.Id.ToString() == schemaId)
+            {
+                return (parent: parent, child: schema);
+            }
+
+            if (schema.LeftChildren is not null)
+            {
+                FindSchemaAndItsParent(schemaId, schema.LeftChildren, baseParent);
+            }
+
+            if (schema.RightChildren is not null)
+            {
+                FindSchemaAndItsParent(schemaId, schema.RightChildren, baseParent);
+            }
+
+            var schemaNext = schema.Next;
+
+            while (schemaNext is not null)
+            {
+                if (schemaNext.Id.ToString() == schemaId)
+                {
+                    return (parent: baseParent, child: schemaNext);
+                }
+
+                if (schemaNext.LeftChildren is not null)
+                {
+                    var _ = FindSchemaAndItsParent(schemaId, schemaNext.LeftChildren, baseParent);
+
+                    if (_.parent is not null || _.child is not null)
+                    {
+                        return _;
+                    }
+                }
+
+                if (schemaNext.RightChildren is not null)
+                {
+                    var _ = FindSchemaAndItsParent(schemaId, schemaNext.RightChildren, baseParent);
+                    
+                    if (_.parent is not null || _.child is not null)
+                    {
+                        return _;
+                    }
+                }
+                
+                schemaNext = schemaNext.Next;
+            }
+        }
+
+        return (parent:null, child:null);
+    }
+
     public static async Task ModifySchema()
     {
         var schemasCollectionObject = GetSchemas();
@@ -142,10 +202,11 @@ public static class Worker
 
         var schemaId = Console.ReadLine()!;
 
-        var foundSchema = schemasCollectionObject.AsQueryable()
-            .ToList().FirstOrDefault(schema => schemaId == schema.Id.ToString());
-
-        if (foundSchema is null)
+        var foundSchema = FindSchemaAndItsParent(schemaId, schemasCollectionObject.AsQueryable().ToList());
+            //schemasCollectionObject.AsQueryable().ToList().
+            //FirstOrDefault(schema => schemaId == schema.Id.ToString());
+            
+        if (foundSchema.parent is null && foundSchema.child is null)
         {
             Console.WriteLine("Bad schema id given");
             return;
@@ -155,18 +216,22 @@ public static class Worker
 
         var newCommand = Console.ReadLine();
 
-        var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.Id);
+        var filter = Builders<SchemaModel>.Filter.Eq("Id", foundSchema.parent?.Id ?? foundSchema.child!.Id);
 
         var matchedCommandOperationName =
             _commands.FirstOrDefault(c => c.Key.Equals(newCommand)).Key;
 
-        foundSchema.LeftChildren = foundSchema.RightChildren = null;
+        foundSchema.child!.LeftChildren = foundSchema.child.RightChildren = null;
 
-        foundSchema.Operation = matchedCommandOperationName;
+        foundSchema.child.Operation = matchedCommandOperationName;
 
-        if (newCommand!.Equals("CompareLess") || newCommand.Equals("CompareEqual")) InsertNodeChildren(foundSchema);
+        //foundSchema.LeftChildren = foundSchema.RightChildren = null;
 
-        await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema);
+        //foundSchema.Operation = matchedCommandOperationName;
+
+        if (newCommand!.Equals("CompareLess") || newCommand.Equals("CompareEqual")) InsertNodeChildren(foundSchema.child);
+
+        await schemasCollectionObject.ReplaceOneAsync(filter, foundSchema.parent ?? foundSchema.child);
 
         Console.WriteLine("All went good while updating");
     }
@@ -415,21 +480,35 @@ public static class Worker
                 var schemaNext = schema.Next;
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
-                    var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema.Operation)
-                        ? schema.RightChildren
-                        : schema.LeftChildren;
+                    lock (ConsoleWriterLock)
+                    {
+                        var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema.Operation)
+                            ? schema.RightChildren
+                            : schema.LeftChildren;
+
+                        
+                            for (var i = 0; i < newOperationsBasedOnResult!.Count; i++)
+                            {
+                                newOperationsBasedOnResult[i].Next = i == newOperationsBasedOnResult.Count - 1 
+                                    ? schemaNext : newOperationsBasedOnResult[i + 1];
+                            }
+                            //newOperationsBasedOnResult.First().Next = newOperationsBasedOnResult[1];
+                        
+                        schemaNext = newOperationsBasedOnResult.First();
+                    }
                     
-                    newOperationsBasedOnResult![^1].Next = schemaNext; //!.Add(schemaNext!);
-                    newOperationsBasedOnResult.First().Next = newOperationsBasedOnResult.Count > 1 ? 
-                            newOperationsBasedOnResult[1] : null;
-                    schemaNext = newOperationsBasedOnResult.First();
                 }
                 else
                 {
-                    Operations.GetOperationByName(schema.Operation)!.Invoke();
-                    Thread.Sleep(100);
+                    lock (ConsoleWriterLock)
+                    {
+                        Operations.GetOperationByName(schema.Operation)!.Invoke();
+                    }
                 }  
+                Thread.Sleep(300);
+
                 if (schemaNext is null) break;
+                
                 schema = schemaNext;
             }
         });
@@ -440,17 +519,29 @@ public static class Worker
         {
             allLines.Append("\tLeftChildren:");
 
-            foreach (var leftChild in root.LeftChildren) allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");
+            foreach (var leftChild in root.LeftChildren)
+            {
+                allLines.Append($"{leftChild.Id}-{leftChild.Operation}-->");
+                GetAllChildrenInfo(leftChild, allLines);
+            }
 
-            GetAllChildrenInfo(root.LeftChildren.First(), allLines);
+            // GetAllChildrenInfo(root.LeftChildren.First(), allLines);
         }
 
-        if (root.RightChildren is null) return;
-        allLines.Append("\tRightChildren:");
+        if (root.RightChildren is not null)
+        {
+            allLines.Append("\tRightChildren:");
 
-        foreach (var rightChild in root.RightChildren)
-            allLines.Append($"{rightChild.Id}-{rightChild.Operation}-->");
+            foreach (var rightChild in root.RightChildren)
+            {
+                allLines.Append($"{rightChild.Id}-{rightChild.Operation}-->");
+                GetAllChildrenInfo(rightChild, allLines);
+            }
+        }
+        
 
-        GetAllChildrenInfo(root.RightChildren.First(), allLines);
+        
+
+        // GetAllChildrenInfo(root.RightChildren.First(), allLines);
     }
 }

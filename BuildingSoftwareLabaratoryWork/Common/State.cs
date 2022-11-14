@@ -11,5 +11,6 @@ internal static class State
         state.GetOrAdd("first", 12);
         state.GetOrAdd("second", 13);
         state.GetOrAdd("third", 14);
+        state.GetOrAdd("fourth", 15);
     }
 }

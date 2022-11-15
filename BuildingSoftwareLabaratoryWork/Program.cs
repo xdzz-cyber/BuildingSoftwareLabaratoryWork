@@ -34,6 +34,9 @@ while (response != "6")
         case "4":
             Worker.ExecuteSchemasByIds().GetAwaiter().GetResult();
             break;
+        case "5":
+            Worker.TestSchema();
+            break;
     }
     
     Console.WriteLine("1 - create new schema\n2 - show schemas" +

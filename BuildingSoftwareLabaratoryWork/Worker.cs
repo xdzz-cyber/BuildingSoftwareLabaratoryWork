@@ -3,6 +3,7 @@ using System.Text;
 using BuildingSoftwareLabaratoryWork.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 
 namespace BuildingSoftwareLabaratoryWork;
 
@@ -236,208 +237,30 @@ public static class Worker
         Console.WriteLine("All went good while updating");
     }
 
-    public static async Task ExecuteSchemasByIds()
+    public static async Task ExecuteSchemasByIds(IEnumerable<string>? dataSet = null)
     {
         Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
         var schemasIds = Console.ReadLine()!.Split(",");
 
+        if (schemasIds.Length > 100)
+        {
+            Console.WriteLine("Limit of schemas to be executed exceeded(100 is max)");
+            return;
+        }
+
         var schemasCollection = GetSchemas()
             .AsQueryable().ToList();
 
-        var threads = new List<Thread>();
-
-        //var actions = new BlockingCollection<Action>();
-
-
-       // var tasks = new List<List<Task>>();
-       // var operations = new List<string>();
-       var schemasToBeExecuted = new List<SchemaModel?>();
+        var schemasToBeExecuted = new List<SchemaModel?>();
+        
         foreach (var schemaId in schemasIds)
         {
-            //WaitCallback commonDelegate = _ => Operations.GetOperationByName(schema.Operation); // just for initialization purposes
-            //var commonDelegate = new Action<object>(_ => Console.Beep());
             var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
             schemasToBeExecuted.Add(schema);
-            //var operationsToBeExecuted = new List<string> { };
-
-           // while (schema is not null)
-           // {
-              //  operationsToBeExecuted.Add(schema.Operation);
-                // if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
-                // {
-                //     var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema!)
-                //         ? schema!.RightChildren!.Select(y => y.Operation)
-                //         : schema!.LeftChildren!.Select(y => y.Operation);
-                //
-                //     operationsToBeExecuted.AddRange(newOperationsBasedOnResult);
-                // }
-                // else
-                // {
-                //     operationsToBeExecuted.Add(schema.Operation);
-                // }
-                
-                //commonDelegate += _ => Operations.GetOperationByName(schemaCopy.Operation);
-
-                // if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
-                // {
-                //  
-                //     Console.WriteLine($"Please, enter value name to compare " +
-                //                       $"{(schema.Operation.Equals("CompareLess") ? "if less" : "if equals")} with comma as separator");
-                //
-                //     var variableName = Console.ReadLine();
-                //
-                //     Console.WriteLine("Please, enter constant name to compare with comma as separator");
-                //
-                //     var constantName = Console.ReadLine();
-                //
-                //     var result = schema.Operation.Equals("CompareLess")
-                //         ? Operations.Compare(variableName!, constantName!) == -1
-                //         : Operations.Compare(variableName!, constantName!) == 0;
-                //
-                //     var commandsToBeExecutedBasedOnResult = result 
-                //         ? schema.RightChildren : schema.LeftChildren;
-                //
-                //     operationsToBeExecuted.AddRange(commandsToBeExecutedBasedOnResult!
-                //         .Select(x => x.Operation));
-                // }
-
-              //  if (schema.Next is null) break;
-              //  schema = schema.Next;
-           // }
-            //operations.AddRange(operationsToBeExecuted);
-            //operations.AddRange(operationsToBeExecuted.Select(Operations.GetOperationByName).ToArray()!);
-            // threads.Add(operationsToBeExecuted.Select(x 
-            //     => new Thread(new ThreadStart(Operations.GetOperationByName(x)!))).ToList());
-
-            // threads.Add(new Thread(() =>
-            // {
-            //
-            //     operationsToBeExecuted.ForEach(o =>
-            //     {
-            //         Thread.Sleep(100);
-            //     });
-            // }));
-            // tasks.Add(operationsToBeExecuted
-            //     .Select(x => new Task(Operations.GetOperationByName(x)!)).ToList());
-            // var tasks = operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!));
-            //
-            // foreach (var task in tasks)
-            // {
-            //     task.RunSynchronously();
-            // }
-            // operationsToBeExecuted.ForEach(x =>
-            // {
-            // });
-
-            // var newThread = new Thread(async () =>
-            // {
-            //     
-            // });
-            //
-            // threads.Add(newThread);
-
-            // var newThread = new Thread(() =>
-            // {
-            //     operationsToBeExecuted.ForEach(x =>
-            //     {
-            //         Operations.GetOperationByName(x)!.Invoke();
-            //     });
-            // });
-            // operationsToBeExecuted.ForEach(x =>
-            // {
-            //     if (x.Equals("CompareLess") || x.Equals("CompareEqual"))
-            //     {
-            //         var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema!)
-            //             ? schema!.RightChildren!.Select(y => y.Operation)
-            //             : schema!.LeftChildren!.Select(y => y.Operation);
-            //
-            //         foreach (var newOperationBasedOnResult in newOperationsBasedOnResult)
-            //         {
-            //             //actions.Add(Operations.GetOperationByName(newOperationBasedOnResult)!);
-            //         }
-            //     }
-            // });
-            // newThread.Start();
-            //ThreadPool.QueueUserWorkItem(commonDelegate);   
-            // Task.WaitAll(operationsToBeExecuted.Select(x => new Task(Operations.GetOperationByName(x)!))
-            //     .ToArray());
-            //operationsToBeExecuted.ForEach(op => Operations.GetOperationByName(op));
-            //threads.Add(newThread);
         }
-        
-        //Parallel.Invoke(operations.ToArray()); // TODO: 1) gotta process compare operations to not get exceptions
-        //SchemaModel? currentPrevSchema = null;
 
-        // foreach (var schema in schemasToBeExecuted)
-        // {
-        //     ThreadPool.QueueUserWorkItem(state =>
-        //     {
-        //         var schemaCopy = schema;
-        //         while (true)
-        //         {
-        //             var schemaNext = schemaCopy!.Next;
-        //             if (schemaCopy.Operation.Equals("CompareLess") || schemaCopy.Operation.Equals("CompareEqual"))
-        //             {
-        //                 var newOperationsBasedOnResult = Operations
-        //                     .GetResultOfCompareOperation(schemaCopy.Operation)
-        //                     ? schemaCopy.RightChildren
-        //                     : schemaCopy.LeftChildren;
-        //                 newOperationsBasedOnResult![^1].Next = schemaNext; //!.Add(schemaNext!);
-        //                 schemaNext = newOperationsBasedOnResult.First();
-        //             }
-        //             else
-        //             {
-        //                 Operations.GetOperationByName(schemaCopy.Operation)!.Invoke();
-        //                 Thread.Sleep(100);
-        //             }  
-        //             if (schemaNext is null) break;
-        //             schemaCopy = schemaNext;
-        //         }
-        //     });
-        // }
-        
-        RunSchemaOperations(schemasToBeExecuted!);
-
-        //threads.ForEach(thread => thread.Start());
-        // Parallel.ForEach(tasks, task =>
-        // {
-        //     task[startIndex].RunSynchronously();
-        //     startIndex += 1;
-        // });
-
-        // foreach (var thread in threads)
-        // {
-        //     thread.Start();
-        // }
-
-        // for (var i = 0; i < threads.MaxBy(t => t.Count)!.Count; i++)
-        // {
-        //    threads.ForEach(t =>
-        //    {
-        //        if (i < t.Count)
-        //        {
-        //            t[i].Start();
-        //            t[i].Join();
-        //        }
-        //    });
-        // }
-
-        // foreach (var action in actions)
-        // {
-        //     action?.DynamicInvoke();
-        // }
-        // while (actions.Count != 0)
-        // {
-        //     var action = actions.Take();
-        //     action();
-        // }
-
-        // threads.ForEach(t =>
-        // {
-        //     t.Start();
-        //     t.Join();
-        // });
+        RunSchemaOperations(schemasToBeExecuted!, dataSet);
     }
 
     public static void ShowSchemas() // ShowState, CompareLess, PrintValue, CompareLess,
@@ -471,7 +294,7 @@ public static class Worker
         Console.WriteLine(tmp);
     }
 
-    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted)
+    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted, IEnumerable<string>? dataSet = null)
     {
         Parallel.ForEach(schemasToBeExecuted, schema => 
         {
@@ -492,9 +315,8 @@ public static class Worker
                                 newOperationsBasedOnResult[i].Next = i == newOperationsBasedOnResult.Count - 1 
                                     ? schemaNext : newOperationsBasedOnResult[i + 1];
                             }
-                            //newOperationsBasedOnResult.First().Next = newOperationsBasedOnResult[1];
-                        
-                        schemaNext = newOperationsBasedOnResult.First();
+
+                            schemaNext = newOperationsBasedOnResult.First();
                     }
                     
                 }
@@ -543,5 +365,40 @@ public static class Worker
         
 
         // GetAllChildrenInfo(root.RightChildren.First(), allLines);
+    }
+
+    public static void TestSchema()
+    {
+        Console.WriteLine("Please, enter schemas id to test them with comma as separator");
+
+        var schemasId = Console.ReadLine()!.Split(",");
+
+        var schemas = GetSchemas().AsQueryable()
+            .Where(s => schemasId.Contains(s.Id.ToString())).ToList();
+        
+
+        foreach (var schema in schemas)
+        {
+            Console.WriteLine("Please, enter number of test cases");
+
+            var numberOfTestCases = int.Parse(Console.ReadLine()!);
+
+            while (numberOfTestCases != 0)
+            {
+                Console.WriteLine("Please, enter data for each operation in such format: separate multiple " +
+                                  "values for specific operation with comma and to distinguish between " +
+                                  "each of them end data set with ;");
+
+                var dataSetForOperations = Console.ReadLine()!.Split(";");
+
+                ExecuteSchemasByIds(dataSetForOperations).GetAwaiter().GetResult();
+                
+                //TODO: Assert that final state equals given(with output of the result)
+                //TODO: and pass dataSet in methods that read data from console
+                
+                numberOfTestCases -= 1;
+            }
+            
+        }
     }
 }

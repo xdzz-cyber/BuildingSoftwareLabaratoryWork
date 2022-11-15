@@ -1,0 +1,5 @@
+﻿1) user may create multiple test sets and in each of them there are multiple sets
+(he creates one set by specifying multiple or one test cases)
+
+2) he passes input data for each operation in schema and by doing so creates single set,
+and then he somehow knows what's result to expect

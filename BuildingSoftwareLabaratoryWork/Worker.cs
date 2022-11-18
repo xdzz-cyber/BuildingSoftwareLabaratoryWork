@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
+using BuildingSoftwareLabaratoryWork.Common;
 using BuildingSoftwareLabaratoryWork.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -9,12 +10,12 @@ namespace BuildingSoftwareLabaratoryWork;
 
 public static class Worker
 {
-    private static Dictionary<string, Action> _commands;
+    private static Dictionary<string, Action<string?>?> _commands;
     private static MongoClient _mongoClient;
     private static ConcurrentDictionary<string, int> _state;
     private static readonly object ConsoleWriterLock = new object();
 
-    public static void Init(Dictionary<string, Action?> commands, ConcurrentDictionary<string, int> state,
+    public static void Init(Dictionary<string, Action<string?>?> commands, ConcurrentDictionary<string, int> state,
         MongoClient mongoClient)
     {
         _commands = commands;
@@ -42,8 +43,7 @@ public static class Worker
         return (commandsIfFalse, commandsIfTrue);
     }
 
-    private static void InsertNodeChildren(SchemaModel root) // ShowState, CompareLess, PrintValue, CompareLess,
-    // Show Constants, ReadNStore
+    private static void InsertNodeChildren(SchemaModel root)
     {
         var commandsIfConditionExists = ReturnRequestedCommandsIfConditionExist();
 
@@ -237,34 +237,41 @@ public static class Worker
         Console.WriteLine("All went good while updating");
     }
 
-    public static async Task ExecuteSchemasByIds(IEnumerable<string>? dataSet = null)
+    public static async Task ExecuteSchemasByIds(string schemaIdToBeExecuted = "",IReadOnlyList<string>? dataSet = null)
     {
-        Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
-
-        var schemasIds = Console.ReadLine()!.Split(",");
-
-        if (schemasIds.Length > 100)
-        {
-            Console.WriteLine("Limit of schemas to be executed exceeded(100 is max)");
-            return;
-        }
-
-        var schemasCollection = GetSchemas()
-            .AsQueryable().ToList();
-
         var schemasToBeExecuted = new List<SchemaModel?>();
         
-        foreach (var schemaId in schemasIds)
+        var schemasCollection = GetSchemas()
+            .AsQueryable().ToList();
+        
+        if (schemaIdToBeExecuted == string.Empty)
         {
-            var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
-            schemasToBeExecuted.Add(schema);
-        }
+            Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
+            var schemasIds = Console.ReadLine()!.Split(",");
+
+            if (schemasIds.Length > 100)
+            {
+                Console.WriteLine("Limit of schemas to be executed exceeded(100 is max)");
+                return;
+            }
+
+            foreach (var schemaId in schemasIds)
+            {
+                var schema = schemasCollection.FirstOrDefault(s => s.Id.ToString().Equals(schemaId));
+                schemasToBeExecuted.Add(schema);
+            }
+        }
+        else
+        {
+            schemasToBeExecuted.Add(schemasCollection
+                .FirstOrDefault(s => s.Id.ToString().Equals(schemaIdToBeExecuted)));
+        }
+        
         RunSchemaOperations(schemasToBeExecuted!, dataSet);
     }
 
-    public static void ShowSchemas() // ShowState, CompareLess, PrintValue, CompareLess,
-        // Show Constants, ReadNStore
+    public static void ShowSchemas()
     {
         var schemasCollectionObject = GetSchemas();
 
@@ -294,18 +301,34 @@ public static class Worker
         Console.WriteLine(tmp);
     }
 
-    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted, IEnumerable<string>? dataSet = null)
+    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted, IReadOnlyList<string>? dataSet = null)
     {
+        var currentCommandIndex = 0;
+        
+        var commandsThatRequireInputData = new List<string>
+        {
+            "AssignValueToVariable",
+            "AssignConstantValueToVariable",
+            "ReadNStore",
+            "PrintValue",
+            "CompareLess",
+            "CompareEqual"
+        };
         Parallel.ForEach(schemasToBeExecuted, schema => 
         {
             while (true)
             {
                 var schemaNext = schema.Next;
+                
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
                     lock (ConsoleWriterLock)
                     {
-                        var newOperationsBasedOnResult = Operations.GetResultOfCompareOperation(schema.Operation)
+                        var newOperationsBasedOnResult = Operations
+                            .GetResultOfCompareOperation(schema.Operation, 
+                                dataSet is not null
+                                && commandsThatRequireInputData.Contains(schema.Operation) 
+                                    ? dataSet[currentCommandIndex] : "")
                             ? schema.RightChildren
                             : schema.LeftChildren;
 
@@ -324,13 +347,16 @@ public static class Worker
                 {
                     lock (ConsoleWriterLock)
                     {
-                        Operations.GetOperationByName(schema.Operation)!.Invoke();
+                        Operations.GetOperationByName(schema.Operation)!.Invoke(dataSet is not null 
+                            && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex] : null);
                     }
                 }  
                 Thread.Sleep(300);
 
                 if (schemaNext is null) break;
-                
+
+                if (commandsThatRequireInputData.Contains(schema.Operation)) currentCommandIndex++;
+
                 schema = schemaNext;
             }
         });
@@ -373,30 +399,65 @@ public static class Worker
 
         var schemasId = Console.ReadLine()!.Split(",");
 
-        var schemas = GetSchemas().AsQueryable()
-            .Where(s => schemasId.Contains(s.Id.ToString())).ToList();
+        var schemas = GetSchemas().AsQueryable().ToList();
         
-
-        foreach (var schema in schemas)
+        foreach (var schema in schemas.Where(s => schemasId.Contains(s.Id.ToString())).ToList())
         {
             Console.WriteLine("Please, enter number of test cases");
 
             var numberOfTestCases = int.Parse(Console.ReadLine()!);
 
+            var currentTestNumber = 1;
+            
             while (numberOfTestCases != 0)
             {
                 Console.WriteLine("Please, enter data for each operation in such format: separate multiple " +
                                   "values for specific operation with comma and to distinguish between " +
                                   "each of them end data set with ;");
 
-                var dataSetForOperations = Console.ReadLine()!.Split(";");
+                var dataSetForOperations = Console.ReadLine()!.Split(";")
+                    .Where(op => !string.IsNullOrEmpty(op)).ToArray();
 
-                ExecuteSchemasByIds(dataSetForOperations).GetAwaiter().GetResult();
+                Console.WriteLine("Please, enter final state via specifying variables with their values in such format" +
+                                  ": variableName=variableValue,secondVariableName=secondVariableValue");
+
+                var expectedStateVariablesValuesAfterTests = Console.ReadLine()!.Split(",");
+
+                ExecuteSchemasByIds(schema.Id.ToString(),dataSetForOperations).GetAwaiter().GetResult();
+
+                var isStateCorrect = true;
+
+                foreach (var expectedStateVariableValueAfterTests in expectedStateVariablesValuesAfterTests)
+                {
+                    var variableName = expectedStateVariableValueAfterTests.Split("=")[0];
+                    
+                    var variableValue = expectedStateVariableValueAfterTests.Split("=")[1];
+
+                    if (State.state[variableName] == int.Parse(variableValue)) continue;
+                    
+                    isStateCorrect = false;
+                    
+                    break;
+                }
+
+                var output = isStateCorrect ? $"Test-{currentTestNumber} case has been passed successfully" 
+                    : $"Test={currentTestNumber} has failed";
+
+                Console.WriteLine(output);
                 
-                //TODO: Assert that final state equals given(with output of the result)
-                //TODO: and pass dataSet in methods that read data from console
+                //TODO: change index of current operation in test to having dictionary of schemaId and related data
+                //TODO: so I can know for sure which data belongs to which schema, and shuffle k times variants of operations
+                //TODO: of k length and find percent of them which satisfy given state final result
+                
+                //TODO: if test result cannot be extracted then we should allow user to change(? or it somehow should create
+                //TODO:create a new order of them randomly) schema and test it
+                //TODO: with same data while it doesn't return ok data
+                //TODO: let's say user has tried several times and yet failed to get needed result then we should allow him to break
+                //TODO: let user input whole number 1<=K<=20 and get percentage of order of operations which satisfy condition
+                //TODO: and have <=K operations 
                 
                 numberOfTestCases -= 1;
+                currentTestNumber++;
             }
             
         }

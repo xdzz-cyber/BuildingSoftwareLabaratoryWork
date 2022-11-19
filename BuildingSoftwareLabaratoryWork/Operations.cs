@@ -109,20 +109,20 @@ public static class Operations
         AssignConstantValueToOther(readData.V, readData.C, State.state, Constants.constants);
     }
 
-    private static void ReadNStore(string? testValue = "")
+    private static void ReadNStore(string? testValues = "")
     {
         Console.WriteLine($"threadId = {Environment.CurrentManagedThreadId}");
         
         var readData = new ReadDataViewModel();
 
-        if (string.IsNullOrEmpty(testValue))
+        if (string.IsNullOrEmpty(testValues))
         {
             readData = ReadToAssign();
         }
         else
         {
-            readData.Name = $"{Guid.NewGuid().ToString()}{new Random().Next(1, 10000)}";
-            readData.Value = int.Parse(testValue);
+            readData.Name = testValues.Split(",")[1];
+            readData.Value = int.Parse(testValues.Split(",")[0]);
         }
         
         State.state[readData.Name] = readData.Value;
@@ -161,9 +161,13 @@ public static class Operations
 
         var value = Console.ReadLine();
 
+        Console.WriteLine("Please, enter name");
+
+        var name = Console.ReadLine();
+
         return new ReadDataViewModel
         {
-            Name = $"{Guid.NewGuid().ToString()}{new Random().Next(1, 10000)}",
+            Name = name!,
             Value = int.Parse(value ?? throw new InvalidOperationException())
         };
     }

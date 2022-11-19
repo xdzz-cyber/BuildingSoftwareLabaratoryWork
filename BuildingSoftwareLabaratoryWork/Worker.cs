@@ -13,7 +13,8 @@ public static class Worker
     private static Dictionary<string, Action<string?>?> _commands;
     private static MongoClient _mongoClient;
     private static ConcurrentDictionary<string, int> _state;
-    private static readonly object ConsoleWriterLock = new object();
+    private static ConcurrentDictionary<string, string> _testValuesForSpecificSchema;
+    private static readonly object ConsoleWriterLock = new();
 
     public static void Init(Dictionary<string, Action<string?>?> commands, ConcurrentDictionary<string, int> state,
         MongoClient mongoClient)
@@ -21,6 +22,7 @@ public static class Worker
         _commands = commands;
         _state = state;
         _mongoClient = mongoClient;
+        _testValuesForSpecificSchema = new ConcurrentDictionary<string, string>();
     }
 
     private static IMongoCollection<SchemaModel> GetSchemas()
@@ -269,6 +271,23 @@ public static class Worker
         }
         
         RunSchemaOperations(schemasToBeExecuted!, dataSet);
+        
+        Console.WriteLine("Do you want to continue ? Input Yes or No");
+
+        var response = Console.ReadLine();
+
+        if (response!.Equals("Yes"))
+        {
+            Console.WriteLine("Please, enter number of tries");
+
+            var k = int.Parse(Console.ReadLine()!);
+
+            for (var i = 0; i < k; i++)
+            {
+                schemasToBeExecuted = schemasToBeExecuted.OrderBy(op => Guid.NewGuid()).ToList();
+                RunSchemaOperations(schemasToBeExecuted!, dataSet);
+            }
+        }
     }
 
     public static void ShowSchemas()
@@ -301,7 +320,8 @@ public static class Worker
         Console.WriteLine(tmp);
     }
 
-    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted, IReadOnlyList<string>? dataSet = null)
+    private static void RunSchemaOperations(IEnumerable<SchemaModel> schemasToBeExecuted, 
+        IReadOnlyList<string>? dataSet = null)
     {
         var currentCommandIndex = 0;
         
@@ -325,7 +345,8 @@ public static class Worker
                     lock (ConsoleWriterLock)
                     {
                         var newOperationsBasedOnResult = Operations
-                            .GetResultOfCompareOperation(schema.Operation, 
+                            .GetResultOfCompareOperation(_testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) 
+                                    ? _testValuesForSpecificSchema[schema.Id.ToString()] : schema.Operation, 
                                 dataSet is not null
                                 && commandsThatRequireInputData.Contains(schema.Operation) 
                                     ? dataSet[currentCommandIndex] : "")
@@ -347,7 +368,9 @@ public static class Worker
                 {
                     lock (ConsoleWriterLock)
                     {
-                        Operations.GetOperationByName(schema.Operation)!.Invoke(dataSet is not null 
+                        Operations.GetOperationByName(schema.Operation)!.Invoke(_testValuesForSpecificSchema
+                                .ContainsKey(schema.Id.ToString()) ? _testValuesForSpecificSchema[schema.Id.ToString()] 
+                            : dataSet is not null 
                             && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex] : null);
                     }
                 }  
@@ -355,12 +378,24 @@ public static class Worker
 
                 if (schemaNext is null) break;
 
-                if (commandsThatRequireInputData.Contains(schema.Operation)) currentCommandIndex++;
+                if (commandsThatRequireInputData.Contains(schema.Operation))
+                {
+                    lock (ConsoleWriterLock)
+                    {
+                        if (_testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) == false)
+                        {
+                            _testValuesForSpecificSchema[schema.Id.ToString()] = dataSet![currentCommandIndex];
+                        }
+                    }
+
+                    currentCommandIndex++;
+                }
 
                 schema = schemaNext;
             }
         });
     }
+    
     private static void GetAllChildrenInfo(SchemaModel root, StringBuilder allLines)
     {
         if (root.LeftChildren is not null)
@@ -444,6 +479,10 @@ public static class Worker
                     : $"Test={currentTestNumber} has failed";
 
                 Console.WriteLine(output);
+                
+                //TODO(most recent): shuffle list then do k operations in single one of them I should find all subsets of list
+                //TODO: of k length and find percent of those that satisfy
+                
                 
                 //TODO: change index of current operation in test to having dictionary of schemaId and related data
                 //TODO: so I can know for sure which data belongs to which schema, and shuffle k times variants of operations

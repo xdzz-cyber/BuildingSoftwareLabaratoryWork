@@ -271,23 +271,6 @@ public static class Worker
         }
         
         RunSchemaOperations(schemasToBeExecuted!, dataSet);
-        
-        Console.WriteLine("Do you want to continue ? Input Yes or No");
-
-        var response = Console.ReadLine();
-
-        if (response!.Equals("Yes"))
-        {
-            Console.WriteLine("Please, enter number of tries");
-
-            var k = int.Parse(Console.ReadLine()!);
-
-            for (var i = 0; i < k; i++)
-            {
-                schemasToBeExecuted = schemasToBeExecuted.OrderBy(op => Guid.NewGuid()).ToList();
-                RunSchemaOperations(schemasToBeExecuted!, dataSet);
-            }
-        }
     }
 
     public static void ShowSchemas()
@@ -345,11 +328,11 @@ public static class Worker
                     lock (ConsoleWriterLock)
                     {
                         var newOperationsBasedOnResult = Operations
-                            .GetResultOfCompareOperation(_testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) 
-                                    ? _testValuesForSpecificSchema[schema.Id.ToString()] : schema.Operation, 
+                            .GetResultOfCompareOperation(schema.Operation, 
                                 dataSet is not null
                                 && commandsThatRequireInputData.Contains(schema.Operation) 
-                                    ? dataSet[currentCommandIndex] : "")
+                                    ? dataSet[currentCommandIndex] : _testValuesForSpecificSchema.ContainsKey(schema.Id.ToString())
+                                    ? _testValuesForSpecificSchema[schema.Id.ToString()] : "")
                             ? schema.RightChildren
                             : schema.LeftChildren;
 
@@ -362,18 +345,45 @@ public static class Worker
 
                             schemaNext = newOperationsBasedOnResult.First();
                     }
-                    
+
                 }
                 else
                 {
                     lock (ConsoleWriterLock)
                     {
-                        Operations.GetOperationByName(schema.Operation)!.Invoke(_testValuesForSpecificSchema
-                                .ContainsKey(schema.Id.ToString()) ? _testValuesForSpecificSchema[schema.Id.ToString()] 
-                            : dataSet is not null 
-                            && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex] : null);
+                        Operations.GetOperationByName(schema.Operation)!.Invoke(dataSet is not null 
+                            && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex]
+                                : _testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) 
+                                    ? _testValuesForSpecificSchema[schema.Id.ToString()] : null);
+                        // _testValuesForSpecificSchema
+                        //         .ContainsKey(schema.Id.ToString()) ? _testValuesForSpecificSchema[schema.Id.ToString()] 
+                        //     : dataSet is not null 
+                        //       && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex] : null
                     }
-                }  
+                }
+
+                // if (dataSet is not null)
+                // {
+                //     Console.WriteLine("Do you want to continue ? Input Yes or No");
+                //
+                //     var response = Console.ReadLine();
+                //
+                //     if (response!.Equals("No"))
+                //     {
+                //         Console.WriteLine("Please, enter number of tries");
+                //
+                //         var k = int.Parse(Console.ReadLine()!);
+                //     
+                //         //var newSchemasToBeExecuted = new List<>()
+                //     
+                //         //schemasToBeExecuted = schemasToBeExecuted.OrderBy(op => Guid.NewGuid()).ToList();
+                //     
+                //         //RunSchemaOperations(schemasToBeExecuted, dataSet);
+                //     
+                //     }
+                // }
+
+
                 Thread.Sleep(300);
 
                 if (schemaNext is null) break;
@@ -382,9 +392,9 @@ public static class Worker
                 {
                     lock (ConsoleWriterLock)
                     {
-                        if (_testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) == false)
+                        if (dataSet is not null)
                         {
-                            _testValuesForSpecificSchema[schema.Id.ToString()] = dataSet![currentCommandIndex];
+                            _testValuesForSpecificSchema[schema.Id.ToString()] = dataSet[currentCommandIndex];
                         }
                     }
 
@@ -395,7 +405,6 @@ public static class Worker
             }
         });
     }
-    
     private static void GetAllChildrenInfo(SchemaModel root, StringBuilder allLines)
     {
         if (root.LeftChildren is not null)
@@ -436,8 +445,10 @@ public static class Worker
 
         var schemas = GetSchemas().AsQueryable().ToList();
         
-        foreach (var schema in schemas.Where(s => schemasId.Contains(s.Id.ToString())).ToList())
+        foreach (var schemaId in schemasId)
         {
+            var schema = schemas.First(s => s.Id.ToString() == schemaId);
+            
             Console.WriteLine("Please, enter number of test cases");
 
             var numberOfTestCases = int.Parse(Console.ReadLine()!);
@@ -475,10 +486,19 @@ public static class Worker
                     break;
                 }
 
-                var output = isStateCorrect ? $"Test-{currentTestNumber} case has been passed successfully" 
-                    : $"Test={currentTestNumber} has failed";
+                var output = isStateCorrect ? $"TestCase-{currentTestNumber} case has been passed successfully for schema" +
+                                              $" with id = {schema.Id.ToString()}" 
+                    : $"TestCase-{currentTestNumber} has failed for schema with id = {schema.Id.ToString()}";
 
                 Console.WriteLine(output);
+                
+                //TODO: 1) begin testing and ask user if one wants to stop every(let's say) 3 combinations of commands which
+                //TODO: length is at most k; if he wants to stop show the percent of covered (combinations / all possible combinations)
+                
+                //TODO: 1) first of all do it for simple samples and then you'll just need to shrink schemas and do the same
+                
+                //TODO: 1) if it's just single schema then it'll is deterministic, so we should only compare with exit data
+                //TODO: 2) if multiple schemas given, 
                 
                 //TODO(most recent): shuffle list then do k operations in single one of them I should find all subsets of list
                 //TODO: of k length and find percent of those that satisfy

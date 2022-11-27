@@ -102,7 +102,14 @@ public static class Worker
 
     public static async Task CreateSchema()
     {
+        
         var schemasCollectionObject = GetSchemas();
+        
+        if (schemasCollectionObject.AsQueryable().ToList().Count >= 100)
+        {
+            Console.WriteLine("Limit of schemas to be executed exceeded(100 is max)");
+            return;
+        }
 
         Console.WriteLine("Write up commands with comma as separator");
 
@@ -253,12 +260,6 @@ public static class Worker
             Console.WriteLine("Please, enter schemas ids to execute them with comma as separator");
 
             var schemasIds = Console.ReadLine()!.Split(",");
-
-            if (schemasIds.Length > 100)
-            {
-                Console.WriteLine("Limit of schemas to be executed exceeded(100 is max)");
-                return;
-            }
 
             foreach (var schemaId in schemasIds)
             {

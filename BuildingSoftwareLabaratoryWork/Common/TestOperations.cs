@@ -16,10 +16,6 @@ public static class TestOperations
         for (var i = 0; i < columns.Count; i++)
         {
 
-            Console.WriteLine("Do you want to stop ? Yes or No");
-
-            responseToContinue = Console.ReadLine();
-
             if (responseToContinue!.Equals("Yes"))
             {
                 break;
@@ -59,6 +55,10 @@ public static class TestOperations
             permutationsForColumn[i] = allPermutationsForCurrent;
     
             totalLengthOfOperationsCount += allPermutationsForCurrent.First().Split(",").Length;
+            
+            Console.WriteLine("Do you want to stop ? Yes or No");
+
+            responseToContinue = Console.ReadLine();
         }
     }
 

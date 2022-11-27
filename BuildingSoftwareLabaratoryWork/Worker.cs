@@ -367,24 +367,27 @@ public static class Worker
                     }
                 }
 
-                Console.WriteLine("Do you want to continue ? Yes or No");
-
-                var whetherContinueResponse = Console.ReadLine();
-
-                if (whetherContinueResponse!.Equals("No"))
+                if (dataSet is not null)
                 {
-                    Console.WriteLine("Please, enter number k of max operations in single combination");
+                    Console.WriteLine("Do you want to continue ? Yes or No");
 
-                    var k = int.Parse(Console.ReadLine()!);
+                    var whetherContinueResponse = Console.ReadLine();
 
-                    var schemasOperations = _schemasOperationsForTesting
-                        .Select(item => item.Value.ToList()).ToList();
+                    if (whetherContinueResponse!.Equals("No"))
+                    {
+                        Console.WriteLine("Please, enter number k of max operations in single combination");
 
-                    TestOperations.GetInfoOfProceededPermutations(schemasOperations, k);
+                        var k = int.Parse(Console.ReadLine()!);
+
+                        var schemasOperations = _schemasOperationsForTesting
+                            .Select(item => item.Value.ToList()).ToList();
+
+                        TestOperations.GetInfoOfProceededPermutations(schemasOperations, k);
                     
-                    return;
+                        return;
+                    } 
                 }
-                
+
                 Thread.Sleep(300);
 
                 if (schemaNext is null) break;

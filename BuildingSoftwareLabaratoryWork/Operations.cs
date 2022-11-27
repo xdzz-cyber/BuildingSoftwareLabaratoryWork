@@ -8,9 +8,6 @@ namespace BuildingSoftwareLabaratoryWork;
 public static class Operations
 {
     public static readonly Dictionary<string, Action<string?>?> operations;
-    // new() 
-    // {{"Assign",() => {}}, {"CompareLess",2}, {"CompareEqual",3} , {"ReadNStore",4}, {"PrintValue",5}, {"ShowState",6}, 
-    //     {"ShowConstants"} };
 
     static Operations()
     {

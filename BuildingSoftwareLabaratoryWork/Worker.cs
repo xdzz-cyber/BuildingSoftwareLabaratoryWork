@@ -4,7 +4,7 @@ using BuildingSoftwareLabaratoryWork.Common;
 using BuildingSoftwareLabaratoryWork.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using MongoDB.Driver.Linq;
+
 
 namespace BuildingSoftwareLabaratoryWork;
 
@@ -14,6 +14,7 @@ public static class Worker
     private static MongoClient _mongoClient;
     private static ConcurrentDictionary<string, int> _state;
     private static ConcurrentDictionary<string, string> _testValuesForSpecificSchema;
+    private static ConcurrentDictionary<string, List<string>> _schemasOperationsForTesting;
     private static readonly object ConsoleWriterLock = new();
 
     public static void Init(Dictionary<string, Action<string?>?> commands, ConcurrentDictionary<string, int> state,
@@ -23,6 +24,7 @@ public static class Worker
         _state = state;
         _mongoClient = mongoClient;
         _testValuesForSpecificSchema = new ConcurrentDictionary<string, string>();
+        _schemasOperationsForTesting = new ConcurrentDictionary<string, List<string>>();
     }
 
     private static IMongoCollection<SchemaModel> GetSchemas()
@@ -317,11 +319,17 @@ public static class Worker
             "CompareLess",
             "CompareEqual"
         };
-        Parallel.ForEach(schemasToBeExecuted, schema => 
+        Parallel.ForEach(schemasToBeExecuted, schema =>
         {
+            var schemaId = schema.Id.ToString();
+            
+            _schemasOperationsForTesting[schemaId] = new List<string>();
+            
             while (true)
             {
                 var schemaNext = schema.Next;
+                
+                _schemasOperationsForTesting[schemaId].Add(schema.Operation);
                 
                 if (schema.Operation.Equals("CompareLess") || schema.Operation.Equals("CompareEqual"))
                 {
@@ -331,7 +339,8 @@ public static class Worker
                             .GetResultOfCompareOperation(schema.Operation, 
                                 dataSet is not null
                                 && commandsThatRequireInputData.Contains(schema.Operation) 
-                                    ? dataSet[currentCommandIndex] : _testValuesForSpecificSchema.ContainsKey(schema.Id.ToString())
+                                    ? dataSet[currentCommandIndex] : _testValuesForSpecificSchema
+                                        .ContainsKey(schema.Id.ToString())
                                     ? _testValuesForSpecificSchema[schema.Id.ToString()] : "")
                             ? schema.RightChildren
                             : schema.LeftChildren;
@@ -355,35 +364,27 @@ public static class Worker
                             && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex]
                                 : _testValuesForSpecificSchema.ContainsKey(schema.Id.ToString()) 
                                     ? _testValuesForSpecificSchema[schema.Id.ToString()] : null);
-                        // _testValuesForSpecificSchema
-                        //         .ContainsKey(schema.Id.ToString()) ? _testValuesForSpecificSchema[schema.Id.ToString()] 
-                        //     : dataSet is not null 
-                        //       && commandsThatRequireInputData.Contains(schema.Operation) ? dataSet[currentCommandIndex] : null
                     }
                 }
 
-                // if (dataSet is not null)
-                // {
-                //     Console.WriteLine("Do you want to continue ? Input Yes or No");
-                //
-                //     var response = Console.ReadLine();
-                //
-                //     if (response!.Equals("No"))
-                //     {
-                //         Console.WriteLine("Please, enter number of tries");
-                //
-                //         var k = int.Parse(Console.ReadLine()!);
-                //     
-                //         //var newSchemasToBeExecuted = new List<>()
-                //     
-                //         //schemasToBeExecuted = schemasToBeExecuted.OrderBy(op => Guid.NewGuid()).ToList();
-                //     
-                //         //RunSchemaOperations(schemasToBeExecuted, dataSet);
-                //     
-                //     }
-                // }
+                Console.WriteLine("Do you want to continue ? Yes or No");
 
+                var whetherContinueResponse = Console.ReadLine();
 
+                if (whetherContinueResponse!.Equals("No"))
+                {
+                    Console.WriteLine("Please, enter number k of max operations in single combination");
+
+                    var k = int.Parse(Console.ReadLine()!);
+
+                    var schemasOperations = _schemasOperationsForTesting
+                        .Select(item => item.Value.ToList()).ToList();
+
+                    TestOperations.GetInfoOfProceededPermutations(schemasOperations, k);
+                    
+                    return;
+                }
+                
                 Thread.Sleep(300);
 
                 if (schemaNext is null) break;
@@ -491,34 +492,13 @@ public static class Worker
                     : $"TestCase-{currentTestNumber} has failed for schema with id = {schema.Id.ToString()}";
 
                 Console.WriteLine(output);
-                
-                //TODO: 1) begin testing and ask user if one wants to stop every(let's say) 3 combinations of commands which
-                //TODO: length is at most k; if he wants to stop show the percent of covered (combinations / all possible combinations)
-                
-                //TODO: 1) first of all do it for simple samples and then you'll just need to shrink schemas and do the same
-                
-                //TODO: 1) if it's just single schema then it'll is deterministic, so we should only compare with exit data
-                //TODO: 2) if multiple schemas given, 
-                
-                //TODO(most recent): shuffle list then do k operations in single one of them I should find all subsets of list
-                //TODO: of k length and find percent of those that satisfy
-                
-                
-                //TODO: change index of current operation in test to having dictionary of schemaId and related data
-                //TODO: so I can know for sure which data belongs to which schema, and shuffle k times variants of operations
-                //TODO: of k length and find percent of them which satisfy given state final result
-                
-                //TODO: if test result cannot be extracted then we should allow user to change(? or it somehow should create
-                //TODO:create a new order of them randomly) schema and test it
-                //TODO: with same data while it doesn't return ok data
-                //TODO: let's say user has tried several times and yet failed to get needed result then we should allow him to break
-                //TODO: let user input whole number 1<=K<=20 and get percentage of order of operations which satisfy condition
-                //TODO: and have <=K operations 
-                
+
                 numberOfTestCases -= 1;
+                
                 currentTestNumber++;
             }
             
         }
+        
     }
 }

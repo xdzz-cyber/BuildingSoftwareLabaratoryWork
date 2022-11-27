@@ -2,7 +2,6 @@
 using BuildingSoftwareLabaratoryWork;
 using BuildingSoftwareLabaratoryWork.Common;
 
-//var tasks = new ConcurrentQueue<Task>();
 var state = new ConcurrentDictionary<string, int>();
 
 Console.WriteLine("1 - create new schema\n2 - show schemas" +
@@ -10,7 +9,6 @@ Console.WriteLine("1 - create new schema\n2 - show schemas" +
 
 var response = Console.ReadLine();
 Worker.Init(Operations.operations, state , MongoDbInformation.GetClient());
-//Schema.Init(Operations.operations);
 
 while (response != "6")
 {
@@ -21,8 +19,6 @@ while (response != "6")
             Console.WriteLine($"You can add up to 100 commands in single schema. Commands available are: " +
                               $"{string.Join(", ", Operations.operations.Select(c => $"{c.Key}"))}");
             
-            //tasks.Append(Task.Run(CreateSchema));
-            //Schema.CreateSchema().GetAwaiter().GetResult();
             Worker.CreateSchema().GetAwaiter().GetResult();
             break;
         case "2":
